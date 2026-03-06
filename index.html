@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+  <title>SPLIQOUR — Add Bar</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="app-container">
+
+    <header class="app-header">
+      <div class="drag-region"></div>
+      <div class="header-content">
+        <div class="brand">
+          <img src="app-icon.png" alt="Spliqour Pro Icon" style="width:32px;height:32px;object-fit:contain;border-radius:6px;vertical-align:middle;margin-right:8px;">
+          <h1>SPLIQOUR <span class="badge">PRO</span></h1>
+          <span class="page-title">Bar / Wine / Beer Shop — Master Creation</span>
+        </div>
+        <div class="header-actions">
+          <button id="homeBtn" class="btn-ghost" title="Back to Bar Selection (Ctrl+Home)">← Home</button>
+          <div class="theme-toggle-wrapper" title="Toggle Theme (Ctrl/Cmd+T)">
+            <span class="theme-icon">☀️</span>
+            <label class="theme-toggle" for="themeSwitch">
+              <input type="checkbox" id="themeSwitch" tabindex="-1">
+              <span class="slider"></span>
+            </label>
+            <span class="theme-icon">🌙</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="form-wrapper">
+        <form id="add-bar-form">
+
+          <!-- ── SECTION 1: Basic Business Info ── -->
+          <div class="form-section">
+            <h2 class="section-title">Business Information</h2>
+
+            <div class="form-group">
+              <label for="barName">Bar / Shop Name <span class="required">*</span></label>
+              <input type="text" id="barName" name="barName" autocomplete="off" autofocus
+                placeholder="e.g. Sunrise Bar & Restaurant">
+              <div class="kb-hint">Press Enter to continue</div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="shopType">Shop Type / License Category <span class="required">*</span></label>
+                <select id="shopType" name="shopType">
+                  <optgroup label="Foreign Liquor (FL) Licenses">
+                    <option value="FL-I">FL-I — Import / Export of IMFL</option>
+                    <option value="FL-II">FL-II — Wholesale of IMFL</option>
+                    <option value="FL-III" selected>FL-III — Bar (IMFL On Permit) ✓</option>
+                    <option value="FL-IV">FL-IV — Hotel / Restaurant Bar</option>
+                    <option value="FL-BR">FL-BR — Beer & Wine Restaurant</option>                    <option value="FL-BR-II">FL-BR-II — Beer Shopee</option>                    <option value="FL-BWS">FL-BWS — Beer & Wine Shop (Retail)</option>
+                    <option value="FL-BT">FL-BT — Beer Tavern</option>
+                    <option value="FL-DP">FL-DP — Duty-Paid Warehouse</option>
+                    <option value="FL-R">FL-R — Retail IMFL Off Permit</option>
+                    <option value="FL-TOD">FL-TOD — Toddy Shop</option>
+                  </optgroup>
+                  <optgroup label="Country Liquor (CL) Licenses">
+                    <option value="CL-I">CL-I — Country Liquor Wholesale</option>
+                    <option value="CL-III">CL-III — Country Liquor Retail Bar</option>
+                    <option value="CL-IV">CL-IV — Country Liquor Bottle Shop</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="Brew Pub">Brew Pub License</option>
+                    <option value="Microbrewery">Microbrewery</option>
+                    <option value="Club License">Club License</option>
+                    <option value="Temporary">Temporary / Event License</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="form-group half">
+                <label for="entityType">Entity Type</label>
+                <select id="entityType" name="entityType">
+                  <option value="Proprietorship" selected>Proprietorship ✓</option>
+                  <option value="Partnership">Partnership Firm</option>
+                  <option value="LLP">LLP (Limited Liability Partnership)</option>
+                  <option value="Private Limited">Private Limited Company</option>
+                  <option value="Public Limited">Public Limited Company</option>
+                  <option value="Co-operative">Co-operative Society</option>
+                  <option value="Trust">Trust / NGO</option>
+                  <option value="HUF">HUF (Hindu Undivided Family)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="tradeName">Trade Name (if different)</label>
+              <input type="text" id="tradeName" name="tradeName" autocomplete="off" placeholder="Operating trade name">
+            </div>
+
+            <div class="form-group half">
+              <label for="financialYear">Stock Working Financial Year <span class="required">*</span></label>
+              <select id="financialYear" name="financialYear">
+                <!-- options injected by renderer.js -->
+              </select>
+            </div>
+
+          </div>
+
+          <!-- ── SECTION 2: Owner / Contact Details ── -->
+          <div class="form-section">
+            <h2 class="section-title">Owner / Contact Details</h2>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="ownerName">Owner / Proprietor Name <span class="required">*</span></label>
+                <input type="text" id="ownerName" name="ownerName" autocomplete="off" placeholder="Full legal name">
+              </div>
+              <div class="form-group half">
+                <label for="contactPerson">Contact Person (Manager)</label>
+                <input type="text" id="contactPerson" name="contactPerson" autocomplete="off"
+                  placeholder="Manager / Partner name">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="phone">Mobile Number <span class="required">*</span></label>
+                <input type="text" id="phone" name="phone" autocomplete="off" placeholder="9XXXXXXXXX">
+              </div>
+              <div class="form-group half">
+                <label for="altPhone">Alternate Phone</label>
+                <input type="text" id="altPhone" name="altPhone" autocomplete="off" placeholder="Landline / WhatsApp">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input type="email" id="email" name="email" autocomplete="off" placeholder="bar@example.com">
+            </div>
+          </div>
+
+          <!-- ── SECTION 3: Address ── -->
+          <div class="form-section">
+            <h2 class="section-title">Premises Address</h2>
+
+            <div class="form-group">
+              <label for="address">Shop Address <span class="required">*</span></label>
+              <input type="text" id="address" name="address" autocomplete="off"
+                placeholder="Shop No., Building, Street or Road">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="area">Area / Locality</label>
+                <input type="text" id="area" name="area" autocomplete="off" placeholder="Colony / Area name">
+              </div>
+              <div class="form-group half">
+                <label for="city">City / Taluka</label>
+                <input type="text" id="city" name="city" autocomplete="off" placeholder="City or Taluka">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="district">District</label>
+                <input type="text" id="district" name="district" autocomplete="off" placeholder="District name">
+              </div>
+              <div class="form-group half">
+                <label for="state">State</label>
+                <input type="text" id="state" name="state" autocomplete="off" placeholder="Maharashtra"
+                  value="Maharashtra">
+              </div>
+            </div>
+
+            <div class="form-group half">
+              <label for="pinCode">PIN Code</label>
+              <input type="text" id="pinCode" name="pinCode" autocomplete="off" placeholder="400001">
+            </div>
+          </div>
+
+          <!-- ── SECTION 4: Tax & Legal IDs ── -->
+          <div class="form-section">
+            <h2 class="section-title">Tax & Identity</h2>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="gstin">GSTIN</label>
+                <input type="text" id="gstin" name="gstin" autocomplete="off" placeholder="27XXXXXX1234X1ZX"
+                  style="text-transform:uppercase">
+              </div>
+              <div class="form-group half">
+                <label for="pan">PAN Number</label>
+                <input type="text" id="pan" name="pan" autocomplete="off" placeholder="AAAAA0000A"
+                  style="text-transform:uppercase">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="aadhar">Aadhaar Number (Owner)</label>
+                <input type="text" id="aadhar" name="aadhar" autocomplete="off" placeholder="XXXX XXXX XXXX">
+              </div>
+              <div class="form-group half">
+                <label for="fssaiNo">FSSAI License No.</label>
+                <input type="text" id="fssaiNo" name="fssaiNo" autocomplete="off" placeholder="FSSAI registration no.">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION 5: Excise License Details ── -->
+          <div class="form-section">
+            <h2 class="section-title">Excise License Details</h2>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="licenseNoInput">Excise License No. <span class="required">*</span></label>
+                <div class="split-input-group">
+                  <span class="split-prefix" id="licensePrefix">FL-III</span>
+                  <span class="split-divider">/</span>
+                  <input type="text" id="licenseNoInput" name="licenseNoInput" autocomplete="off" placeholder="0001"
+                    inputmode="numeric" style="text-transform:uppercase">
+                  <input type="hidden" id="licenseNo" name="licenseNo">
+                </div>
+              </div>
+              <div class="form-group half">
+                <label for="licenseType">License Type / Category</label>
+                <input type="text" id="licenseType" name="licenseType" autocomplete="off"
+                  placeholder="Auto-filled from Shop Type" readonly style="opacity:0.7;cursor:not-allowed">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="licenseIssueDate">License Issue Date</label>
+                <input type="date" id="licenseIssueDate" name="licenseIssueDate">
+              </div>
+              <div class="form-group half">
+                <label for="licenseExpiryDate">License Expiry Date</label>
+                <input type="date" id="licenseExpiryDate" name="licenseExpiryDate">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="exciseDivision">Excise Division / Zone</label>
+                <input type="text" id="exciseDivision" name="exciseDivision" autocomplete="off"
+                  placeholder="District Excise Office">
+              </div>
+              <div class="form-group half">
+                <label for="shopActNo">Shop Act / Gumasta No.</label>
+                <input type="text" id="shopActNo" name="shopActNo" autocomplete="off"
+                  placeholder="Shop Act registration no.">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION 6: Banking Details ── -->
+          <div class="form-section">
+            <h2 class="section-title">Bank Details</h2>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="bankName">Bank Name</label>
+                <input type="text" id="bankName" name="bankName" autocomplete="off"
+                  placeholder="e.g. State Bank of India">
+              </div>
+              <div class="form-group half">
+                <label for="bankBranch">Branch</label>
+                <input type="text" id="bankBranch" name="bankBranch" autocomplete="off" placeholder="Branch name">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="accountNo">Account Number</label>
+                <input type="text" id="accountNo" name="accountNo" autocomplete="off" placeholder="Bank account number">
+              </div>
+              <div class="form-group half">
+                <label for="ifsc">IFSC Code</label>
+                <input type="text" id="ifsc" name="ifsc" autocomplete="off" placeholder="SBIN0001234"
+                  style="text-transform:uppercase">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION 7: Other Compliance ── -->
+          <div class="form-section">
+            <h2 class="section-title">Other Compliance Info</h2>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="fireNoc">Fire NOC Number</label>
+                <input type="text" id="fireNoc" name="fireNoc" autocomplete="off" placeholder="Fire Dept. NOC no.">
+              </div>
+              <div class="form-group half">
+                <label for="policeVerification">Police Verification No.</label>
+                <input type="text" id="policeVerification" name="policeVerification" autocomplete="off"
+                  placeholder="Police clearance ref.">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="remarks">Remarks / Notes</label>
+              <input type="text" id="remarks" name="remarks" autocomplete="off"
+                placeholder="Any additional information">
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="status-bar">
+        <div class="shortcuts">
+          <span class="shortcut"><kbd>Enter</kbd> Next</span>
+          <span class="shortcut"><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+          <span class="shortcut"><kbd>Esc</kbd> Clear</span>
+          <span class="shortcut highlight"><kbd>Ctrl+T</kbd> Theme</span>
+          <span class="shortcut highlight"><kbd>Ctrl+S</kbd> Save Bar</span>
+        </div>
+        <div id="toast" class="toast hidden"></div>
+      </div>
+    </main>
+
+  </div>
+  <script src="renderer.js"></script>
+</body>
+
+</html>

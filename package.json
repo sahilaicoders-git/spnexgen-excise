@@ -1,0 +1,72 @@
+{
+  "name": "spliqourpro",
+  "version": "1.0.0",
+  "description": "SpliqourPro - Liquor Bar Management System",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win --x64",
+    "build:dir": "electron-builder build --win --dir",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "SpliqourPro",
+  "license": "ISC",
+  "type": "commonjs",
+  "build": {
+    "appId": "com.spliqour.spliqourpro",
+    "productName": "SpliqourPro",
+    "copyright": "Copyright © 2025 SpliqourPro",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/tesseract.js/**",
+      "node_modules/tesseract.js-core/**"
+    ],
+    "files": [
+      "**/*",
+      "!data/**",
+      "!seed_demo.js",
+      "!dist/**",
+      "!*.md",
+      "!.git/**"
+    ],
+    "extraResources": [
+      {
+        "from": "eng.traineddata",
+        "to": "eng.traineddata"
+      }
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "SpliqourPro-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SpliqourPro",
+      "language": "1033"
+    },
+    "toolsets": {
+      "winCodeSign": "1.1.0"
+    }
+  },
+  "devDependencies": {
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "tesseract.js": "^5.1.1",
+    "xlsx": "^0.18.5"
+  }
+}
