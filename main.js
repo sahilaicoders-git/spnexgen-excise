@@ -1874,7 +1874,7 @@ ipcMain.handle('check-for-updates', async () => {
   const current = app.getVersion();
   try {
     const cfg = loadConfig();
-    const repoUrl = cfg.updateCheckUrl || '';  // e.g. https://api.github.com/repos/owner/spliqourpro/releases/latest
+    const repoUrl = cfg.updateCheckUrl || 'https://api.github.com/repos/sahilaicoders-git/spnexgen-excise/releases/latest';
     if (!repoUrl) {
       return { success: true, currentVersion: current, updateAvailable: false, message: 'No update server configured. You are running v' + current + '.' };
     }
