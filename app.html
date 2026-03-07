@@ -1101,35 +1101,30 @@
                 <!-- Sub-views -->
                 <div class="sales-sub-view sub-view active" id="sub-add-daily-sale">
 
-                    <!-- Date Picker Popup -->
+                    <!-- Date Confirm Dialog -->
                     <div class="ds-date-modal-overlay hidden" id="dsDateModal">
                         <div class="ds-date-modal">
                             <div class="ds-modal-icon">🧾</div>
-                            <h3 class="ds-modal-title">Select Sale Date</h3>
-                            <p class="ds-modal-subtitle">Choose which date you want to enter sales for</p>
+                            <h3 class="ds-modal-title">Sale Date</h3>
+                            <p class="ds-modal-subtitle">Confirm or change the date for this sale entry</p>
+
+                            <div class="ds-confirm-date-wrap">
+                                <input type="date" id="dsDateConfirm" class="ds-confirm-date-input">
+                            </div>
 
                             <div class="ds-modal-quick-row">
-                                <button class="ds-modal-quick-btn ds-modal-quick--today" id="dsDateToday">
-                                    <span class="ds-modal-quick-label">Today</span>
-                                    <span class="ds-modal-quick-date" id="dsDateTodayVal"></span>
-                                </button>
                                 <button class="ds-modal-quick-btn ds-modal-quick--yesterday" id="dsDateYesterday">
                                     <span class="ds-modal-quick-label">Yesterday</span>
-                                    <span class="ds-modal-quick-date" id="dsDateYesterdayVal"></span>
+                                </button>
+                                <button class="ds-modal-quick-btn ds-modal-quick--today" id="dsDateTodayBtn">
+                                    <span class="ds-modal-quick-label">Today</span>
                                 </button>
                             </div>
 
-                            <div class="ds-modal-divider"><span>or enter date</span></div>
-
-                            <div class="bw-modal-field">
-                                <label class="bw-modal-label">Date &nbsp;<kbd class="bw-modal-kbd">T</kbd> Today &nbsp;<kbd class="bw-modal-kbd">Y</kbd> Yesterday</label>
-                                <div class="ds-modal-custom-row">
-                                    <input type="text" id="dsDateCustom" class="ds-modal-custom-input" placeholder="DD/MM/YYYY  or  DDMMYYYY" maxlength="10" autocomplete="off" spellcheck="false">
-                                    <button class="bw-modal-btn bw-modal-btn-go ds-modal-go-btn" id="dsDateCustomGo">Go &nbsp;↵</button>
-                                </div>
-                            </div>
-
-                            <p class="bw-modal-hint">Press <kbd>Enter</kbd> to confirm &nbsp;•&nbsp; <kbd>Esc</kbd> to cancel</p>
+                            <button class="ds-confirm-ok-btn" id="dsDateConfirmOk">
+                                Open &mdash; <span id="dsConfirmDateLabel"></span>
+                            </button>
+                            <p class="bw-modal-hint">Press <kbd>Enter</kbd> to confirm</p>
                         </div>
                     </div>
 
@@ -1142,6 +1137,8 @@
                                 <div class="ds-date-wrap">
                                     <label class="ds-date-label">Date</label>
                                     <input type="date" id="dsDate" class="ds-date-input">
+                                    <button class="ds-date-shortcut-btn" id="dsBtnYesterday" title="Yesterday">Yesterday</button>
+                                    <button class="ds-date-shortcut-btn ds-date-shortcut-today" id="dsBtnToday" title="Today">Today</button>
                                 </div>
                             </div>
                             <div class="ds-topbar-right">
@@ -3525,10 +3522,6 @@
         <div class="pp-toolbar">
             <span class="pp-title">Print Preview</span>
             <div class="pp-actions">
-                <button class="pp-btn pp-print-btn" id="ppPrintBtn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                    Print
-                </button>
                 <button class="pp-btn pp-close-btn" id="ppCloseBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     Close
@@ -3536,6 +3529,16 @@
             </div>
         </div>
         <iframe id="ppFrame" class="pp-frame"></iframe>
+        <div class="pp-footer">
+            <button class="pp-btn pp-cancel-btn" id="ppCancelBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>
+                Cancel
+            </button>
+            <button class="pp-btn pp-print-btn-bottom" id="ppPrintBtnBottom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print
+            </button>
+        </div>
     </div>
 
 </html>

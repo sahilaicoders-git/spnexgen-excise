@@ -5,6 +5,9 @@
             var h = maximized ? 30 : 38;
             document.documentElement.style.setProperty('--topbar-drag-height', h + 'px');
             document.body.classList.toggle('win-maximized', !!maximized);
+            // Swap maximize / restore icon
+            var maxBtn = document.getElementById('winMaximize');
+            if (maxBtn) maxBtn.title = maximized ? 'Restore' : 'Maximize';
         }
         applyTopbarHeight(false);
         if (window.electronAPI && window.electronAPI.onWindowStateChanged) {
@@ -40,22 +43,36 @@
         const frame = document.getElementById('ppFrame');
         if (!modal || !frame) { return; }
         modal.classList.remove('hidden');
+        // Sync native overlay colour to the print preview toolbar
+        window.electronAPI?.setTitleBarOverlay?.({ color: '#1e293b', symbolColor: '#94a3b8', height: 38 });
         const doc = frame.contentDocument || frame.contentWindow.document;
         doc.open();
         doc.write(html);
         doc.close();
     }
 
-    // ── Print Preview modal controls ──
-    document.getElementById('ppCloseBtn')?.addEventListener('click', () => {
+    function closePrintPreview() {
         document.getElementById('printPreviewModal')?.classList.add('hidden');
-    });
-    document.getElementById('ppPrintBtn')?.addEventListener('click', () => {
-        const fr = document.getElementById('ppFrame');
-        if (fr) { fr.contentWindow.focus(); fr.contentWindow.print(); }
-    });
+        // Restore overlay to match active app theme
+        const t = document.documentElement.getAttribute('data-theme') || 'dark';
+        window.electronAPI?.setTitleBarOverlay?.(
+            t === 'dark'
+                ? { color: '#13132e', symbolColor: '#9ca3af', height: 38 }
+                : { color: '#312e81', symbolColor: '#c7d2fe', height: 38 }
+        );
+    }
+
+    // ── Print Preview modal controls ──
+    const _ppDoPrint = () => { const fr = document.getElementById('ppFrame'); if (fr) { fr.contentWindow.focus(); fr.contentWindow.print(); } };
+    document.getElementById('ppCloseBtn')?.addEventListener('click', closePrintPreview);
+    document.getElementById('ppCancelBtn')?.addEventListener('click', closePrintPreview);
+    document.getElementById('ppPrintBtn')?.addEventListener('click', _ppDoPrint);
+    document.getElementById('ppPrintBtnBottom')?.addEventListener('click', _ppDoPrint);
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') document.getElementById('printPreviewModal')?.classList.add('hidden');
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('printPreviewModal');
+            if (modal && !modal.classList.contains('hidden')) closePrintPreview();
+        }
     });
 
     // ── Theme ──────────────────────────────────────────────
@@ -76,12 +93,12 @@
         if (themeSwitch) themeSwitch.checked = (t === 'dark');
         if (themeSwitch2) themeSwitch2.checked = (t === 'dark');
         localStorage.setItem('spliqour-theme', t);
-        // Update native window control buttons to match theme
+        // Update native title-bar overlay to match topbar colour
         if (window.electronAPI && window.electronAPI.setTitleBarOverlay) {
             window.electronAPI.setTitleBarOverlay(
                 t === 'dark'
-                    ? { color: '#15151b', symbolColor: '#ffffff', height: 38 }
-                    : { color: '#ffffff', symbolColor: '#333333', height: 38 }
+                    ? { color: '#13132e', symbolColor: '#9ca3af', height: 38 }
+                    : { color: '#312e81', symbolColor: '#c7d2fe', height: 38 }
             );
         }
     }
@@ -2242,6 +2259,13 @@
                     const db = b.tpDate || b.createdAt || '';
                     return db.localeCompare(da);
                 });
+                // Assign persistent Sr.No based on ascending (chronological) order
+                const ascSorted = [...allTps].sort((a, b) => {
+                    const da = a.tpDate || a.createdAt || '';
+                    const db = b.tpDate || b.createdAt || '';
+                    return da.localeCompare(db);
+                });
+                ascSorted.forEach((tp, i) => { tp._srNo = i + 1; });
             }
         } catch (err) {
             console.error('loadTpSummary error:', err);
@@ -2329,7 +2353,7 @@
             const itemCount = (tp.items || []).length;
 
             tr.innerHTML = `
-                <td class="tps-td-sr">${idx + 1}</td>
+                <td class="tps-td-sr">${tp._srNo ?? (idx + 1)}</td>
                 <td class="tps-td-num">${esc(tp.tpNumber || '—')}</td>
                 <td class="tps-td-date">${tpDate}</td>
                 <td class="tps-td-recv">${recvDate}</td>
@@ -2899,7 +2923,7 @@
         try {
             // Summary sheet
             const summaryRows = filteredTps.map((tp, i) => ({
-                '#': i + 1,
+                '#': tp._srNo ?? (i + 1),
                 'TP Number': tp.tpNumber || '',
                 'TP Date': tp.tpDate || '',
                 'Received Date': tp.receivedDate || '',
@@ -10504,155 +10528,96 @@
     const dsSaveBillBtn   = document.getElementById('dsSaveBillBtn');
     const dsClearBillBtn  = document.getElementById('dsClearBillBtn');
 
-    /* ══════ DATE PICKER MODAL ══════ */
-    const dsDateModal     = document.getElementById('dsDateModal');
-    const dsDateToday     = document.getElementById('dsDateToday');
-    const dsDateYesterday = document.getElementById('dsDateYesterday');
-    const dsDateTodayVal  = document.getElementById('dsDateTodayVal');
-    const dsDateYesterdayVal = document.getElementById('dsDateYesterdayVal');
-    const dsDateCustom    = document.getElementById('dsDateCustom');
-    const dsDateCustomGo  = document.getElementById('dsDateCustomGo');
+    /* ══════ DATE CONFIRM DIALOG ══════ */
+    const dsDateModal       = document.getElementById('dsDateModal');
+    const dsDateConfirmEl   = document.getElementById('dsDateConfirm');
+    const dsDateConfirmOk   = document.getElementById('dsDateConfirmOk');
+    const dsConfirmDateLbl  = document.getElementById('dsConfirmDateLabel');
+    const dsDateTodayBtn    = document.getElementById('dsDateTodayBtn');
+    const dsDateYesterday   = document.getElementById('dsDateYesterday');
+
+    function todayStr() { return new Date().toISOString().split('T')[0]; }
+    function yesterdayStr() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; }
 
     function fmtDateDisplay(dateStr) {
         const d = new Date(dateStr + 'T00:00:00');
         return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     }
 
-    let dsSelectedQuickDate = null; // tracks the current quick-pick selection
-
-    function setDsQuickActive(btn) {
-        [dsDateToday, dsDateYesterday].forEach(b => { if (b) b.classList.remove('ds-modal-quick--active'); });
-        if (btn) btn.classList.add('ds-modal-quick--active');
+    function updateConfirmLabel() {
+        if (!dsDateConfirmEl || !dsConfirmDateLbl) return;
+        const v = dsDateConfirmEl.value || todayStr();
+        dsConfirmDateLbl.textContent = fmtDateDisplay(v);
     }
 
     function showDsDateModal() {
         if (!dsDateModal) return;
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const todayStr = today.toISOString().split('T')[0];
-        const yestStr = yesterday.toISOString().split('T')[0];
-
-        if (dsDateTodayVal) dsDateTodayVal.textContent = fmtDateDisplay(todayStr);
-        if (dsDateYesterdayVal) dsDateYesterdayVal.textContent = fmtDateDisplay(yestStr);
-        if (dsDateCustom) { dsDateCustom.value = ''; dsDateCustom.classList.remove('ds-date-custom-error'); }
-
-        // Default: today is pre-selected
-        dsSelectedQuickDate = todayStr;
-        setDsQuickActive(dsDateToday);
-
+        // Pre-fill with today
+        if (dsDateConfirmEl) {
+            dsDateConfirmEl.value = todayStr();
+            dsDateConfirmEl.addEventListener('change', updateConfirmLabel);
+        }
+        updateConfirmLabel();
         dsDateModal.classList.remove('hidden');
-        // Auto-focus text input so user can start typing immediately
-        setTimeout(() => { if (dsDateCustom) dsDateCustom.focus(); }, 60);
+        setTimeout(() => dsDateConfirmEl?.focus(), 60);
     }
 
     function hideDsDateModal() {
         if (dsDateModal) dsDateModal.classList.add('hidden');
     }
 
-    function pickDsDate(dateStr) {
-        if (dsDateEl) dsDateEl.value = dateStr;
+    function confirmDsDate() {
+        const val = dsDateConfirmEl?.value || todayStr();
+        if (dsDateEl) dsDateEl.value = val;
         hideDsDateModal();
-        loadDailySaleData();
+        loadDailySaleData().then(() => {
+            setTimeout(() => dsItemInput?.focus(), 80);
+        }).catch(() => {
+            setTimeout(() => dsItemInput?.focus(), 80);
+        });
     }
 
-    // Parse a free-text date string typed by the user
-    // Accepts: DDMMYYYY, DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, DDMM (current year)
-    function parseDsDateText(raw) {
-        const s = (raw || '').trim().replace(/[.\-\/]/g, '');
-        if (s.length === 8) {
-            // DDMMYYYY
-            const dd = s.slice(0, 2), mm = s.slice(2, 4), yyyy = s.slice(4, 8);
-            const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-            if (!isNaN(d) && String(d.getDate()).padStart(2,'0') === dd) {
-                return `${yyyy}-${mm}-${dd}`;
-            }
-        }
-        if (s.length === 4) {
-            // DDMM — assume current year
-            const dd = s.slice(0, 2), mm = s.slice(2, 4);
-            const yyyy = String(new Date().getFullYear());
-            const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-            if (!isNaN(d) && String(d.getDate()).padStart(2,'0') === dd) {
-                return `${yyyy}-${mm}-${dd}`;
-            }
-        }
-        return null;
-    }
-
-    function trySubmitCustomDate() {
-        const v = dsDateCustom ? dsDateCustom.value.trim() : '';
-        if (!v) return;
-        // Shorthand T / Y
-        if (v.toLowerCase() === 't') { pickDsDate(new Date().toISOString().split('T')[0]); return; }
-        if (v.toLowerCase() === 'y') { const y = new Date(); y.setDate(y.getDate()-1); pickDsDate(y.toISOString().split('T')[0]); return; }
-        const parsed = parseDsDateText(v);
-        if (parsed) {
-            pickDsDate(parsed);
-        } else if (dsDateCustom) {
-            dsDateCustom.classList.add('ds-date-custom-error');
-            dsDateCustom.select();
-        }
-    }
-
-    if (dsDateToday) {
-        dsDateToday.addEventListener('click', () => {
-            const s = new Date().toISOString().split('T')[0];
-            dsSelectedQuickDate = s;
-            setDsQuickActive(dsDateToday);
-            pickDsDate(s);
+    if (dsDateTodayBtn) {
+        dsDateTodayBtn.addEventListener('click', () => {
+            if (dsDateConfirmEl) dsDateConfirmEl.value = todayStr();
+            updateConfirmLabel();
         });
     }
     if (dsDateYesterday) {
         dsDateYesterday.addEventListener('click', () => {
-            const y = new Date();
-            y.setDate(y.getDate() - 1);
-            const s = y.toISOString().split('T')[0];
-            dsSelectedQuickDate = s;
-            setDsQuickActive(dsDateYesterday);
-            pickDsDate(s);
+            if (dsDateConfirmEl) dsDateConfirmEl.value = yesterdayStr();
+            updateConfirmLabel();
         });
     }
-    if (dsDateCustomGo) {
-        dsDateCustomGo.addEventListener('click', trySubmitCustomDate);
+    if (dsDateConfirmOk) {
+        dsDateConfirmOk.addEventListener('click', confirmDsDate);
     }
-    if (dsDateCustom) {
-        dsDateCustom.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                // If input is empty, confirm the currently highlighted quick-pick (default: today)
-                if (!dsDateCustom.value.trim() && dsSelectedQuickDate) {
-                    pickDsDate(dsSelectedQuickDate);
-                } else {
-                    trySubmitCustomDate();
-                }
-            }
-            if (e.key === 'Escape') { e.preventDefault(); hideDsDateModal(); }
-            // T / Y shortcuts — only when input is empty or has just that letter
-            if ((e.key === 't' || e.key === 'T') && dsDateCustom.value === '') {
-                e.preventDefault();
-                pickDsDate(new Date().toISOString().split('T')[0]);
-            }
-            if ((e.key === 'y' || e.key === 'Y') && dsDateCustom.value === '') {
-                e.preventDefault();
-                const y = new Date(); y.setDate(y.getDate() - 1);
-                pickDsDate(y.toISOString().split('T')[0]);
-            }
-            dsDateCustom.classList.remove('ds-date-custom-error');
+
+    // Enter key confirms, Esc ignored (must pick a date)
+    dsDateModal?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); confirmDsDate(); }
+    });
+
+    /* ══════ DATE SHORTCUT BUTTONS (topbar) ══════ */
+    const dsBtnToday     = document.getElementById('dsBtnToday');
+    const dsBtnYesterday = document.getElementById('dsBtnYesterday');
+
+    if (dsBtnToday) {
+        dsBtnToday.addEventListener('click', () => {
+            if (dsDateEl) dsDateEl.value = todayStr();
+            loadDailySaleData();
         });
-        // Auto-submit once 8 digits are present (DDMMYYYY typed fast)
-        dsDateCustom.addEventListener('input', () => {
-            dsDateCustom.classList.remove('ds-date-custom-error');
-            const digits = dsDateCustom.value.replace(/\D/g, '');
-            if (digits.length === 8) {
-                const parsed = parseDsDateText(digits);
-                if (parsed) { pickDsDate(parsed); }
-            }
+    }
+    if (dsBtnYesterday) {
+        dsBtnYesterday.addEventListener('click', () => {
+            if (dsDateEl) dsDateEl.value = yesterdayStr();
+            loadDailySaleData();
         });
     }
 
     /* ══════ INIT ══════ */
     async function initDailySale() {
+        // Always show date confirm dialog on open — pre-filled with today
         showDsDateModal();
     }
 

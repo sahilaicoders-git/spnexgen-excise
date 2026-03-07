@@ -50,8 +50,8 @@ function createWindow() {
     },
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#1e1e24',
-      symbolColor: '#ffffff',
+      color: '#13132e',
+      symbolColor: '#9ca3af',
       height: 38
     }
   });
@@ -78,6 +78,19 @@ ipcMain.handle('set-title-bar-overlay', (event, opts) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     try { mainWindow.setTitleBarOverlay(opts); } catch(e) {}
   }
+});
+
+// ── Custom window controls ──
+ipcMain.on('window-minimize', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+});
+ipcMain.on('window-maximize', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  }
+});
+ipcMain.on('window-close', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
 });
 
 app.whenReady().then(async () => {

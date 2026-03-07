@@ -4,6 +4,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Window state
     onWindowStateChanged: (cb) => ipcRenderer.on('window-state-changed', (_e, state) => cb(state)),
     setTitleBarOverlay: (opts) => ipcRenderer.invoke('set-title-bar-overlay', opts),
+    // Custom window controls
+    windowMinimize: () => ipcRenderer.send('window-minimize'),
+    windowMaximize: () => ipcRenderer.send('window-maximize'),
+    windowClose:    () => ipcRenderer.send('window-close'),
     // Bar data
     saveBarData: (data) => ipcRenderer.invoke('save-bar-data', data),
     getBarsIndex: () => ipcRenderer.invoke('get-bars-index'),
