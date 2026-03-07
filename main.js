@@ -1,6 +1,17 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
+
+// ── Auto-Updater Setup ─────────────────────────────────────
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.on('download-progress', (progress) => {
+  if (mainWindow) mainWindow.webContents.send('update-download-progress', progress);
+});
+autoUpdater.on('update-downloaded', () => {
+  if (mainWindow) mainWindow.webContents.send('update-downloaded');
+});
 
 let mainWindow;
 
@@ -1873,37 +1884,35 @@ ipcMain.handle('open-data-folder', async () => {
 ipcMain.handle('check-for-updates', async () => {
   const current = app.getVersion();
   try {
-    const cfg = loadConfig();
-    const repoUrl = cfg.updateCheckUrl || 'https://api.github.com/repos/sahilaicoders-git/spnexgen-excise/releases/latest';
-    if (!repoUrl) {
-      return { success: true, currentVersion: current, updateAvailable: false, message: 'No update server configured. You are running v' + current + '.' };
+    const result = await autoUpdater.checkForUpdates();
+    if (!result || !result.updateInfo) {
+      return { success: true, currentVersion: current, updateAvailable: false, message: `You are running the latest version (v${current}).` };
     }
-    const https = require('https');
-    const data = await new Promise((resolve, reject) => {
-      const req = https.get(repoUrl, { headers: { 'User-Agent': 'SpliqourPro/' + current } }, (res) => {
-        let body = '';
-        res.on('data', chunk => body += chunk);
-        res.on('end', () => {
-          try { resolve(JSON.parse(body)); } catch (e) { reject(new Error('Invalid response')); }
-        });
-      });
-      req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
-      req.on('error', reject);
-    });
-    const latest = (data.tag_name || '').replace(/^v/, '');
-    if (!latest) return { success: true, currentVersion: current, updateAvailable: false, message: 'Could not determine latest version.' };
+    const latest = result.updateInfo.version;
     const updateAvailable = latest !== current;
     return {
       success: true,
       currentVersion: current,
       latestVersion: latest,
       updateAvailable,
-      downloadUrl: data.html_url || '',
       message: updateAvailable
-        ? `Update available: v${latest} → click Download to get it.`
+        ? `Update available: v${latest} is ready to download.`
         : `You are running the latest version (v${current}).`
     };
   } catch (err) {
     return { success: true, currentVersion: current, updateAvailable: false, message: 'Could not check for updates: ' + err.message };
   }
+});
+
+ipcMain.handle('download-update', async () => {
+  try {
+    autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
 });

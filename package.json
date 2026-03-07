@@ -44,10 +44,17 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "SpliqourPro-Setup-${version}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "sahilaicoders-git",
+      "repo": "spnexgen-excise"
     },
     "nsis": {
       "oneClick": false,
@@ -66,6 +73,7 @@
     "electron-builder": "^26.8.1"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "tesseract.js": "^5.1.1",
     "xlsx": "^0.18.5"
   }

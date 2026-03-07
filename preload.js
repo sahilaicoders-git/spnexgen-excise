@@ -70,4 +70,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    downloadUpdate: () => ipcRenderer.invoke('download-update'),
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+    onUpdateDownloadProgress: (cb) => ipcRenderer.on('update-download-progress', (_e, progress) => cb(progress)),
+    onUpdateDownloaded: (cb) => ipcRenderer.on('update-downloaded', () => cb()),
 });

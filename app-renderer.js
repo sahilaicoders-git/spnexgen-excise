@@ -375,6 +375,22 @@
     const updateStatusBox = document.getElementById('updateStatusBox');
     const updateStatusText = document.getElementById('updateStatusText');
     if (checkUpdateBtn) {
+        // Listen for download progress from main process
+        window.electronAPI.onUpdateDownloadProgress((progress) => {
+            const pct = Math.round(progress.percent || 0);
+            if (updateStatusText) updateStatusText.textContent = `Downloading… ${pct}% (${Math.round((progress.bytesPerSecond || 0) / 1024)} KB/s)`;
+            if (updateStatusBox) updateStatusBox.className = 'appdata-update-status appdata-update-status--checking';
+        });
+
+        // Listen for download complete from main process
+        window.electronAPI.onUpdateDownloaded(() => {
+            if (updateStatusBox) updateStatusBox.className = 'appdata-update-status appdata-update-status--ok';
+            if (updateStatusText) updateStatusText.textContent = 'Download complete! Click Install & Restart to apply the update.';
+            checkUpdateBtn.disabled = false;
+            checkUpdateBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg> Install & Restart`;
+            checkUpdateBtn.onclick = () => window.electronAPI.installUpdate();
+        });
+
         checkUpdateBtn.addEventListener('click', async () => {
             checkUpdateBtn.disabled = true;
             checkUpdateBtn.textContent = 'Checking…';
@@ -387,11 +403,16 @@
                         (r.updateAvailable ? 'appdata-update-status--error' : 'appdata-update-status--ok');
                 }
                 if (updateStatusText) updateStatusText.textContent = r.message || 'Check complete.';
-                // If update available and we have a download URL, show a download button
-                if (r.updateAvailable && r.downloadUrl) {
+                if (r.updateAvailable) {
                     checkUpdateBtn.disabled = false;
-                    checkUpdateBtn.textContent = 'Download Update';
-                    checkUpdateBtn.onclick = () => window.electronAPI.openExternal(r.downloadUrl);
+                    checkUpdateBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg> Download & Install`;
+                    checkUpdateBtn.onclick = async () => {
+                        checkUpdateBtn.disabled = true;
+                        checkUpdateBtn.textContent = 'Downloading…';
+                        if (updateStatusBox) updateStatusBox.className = 'appdata-update-status appdata-update-status--checking';
+                        if (updateStatusText) updateStatusText.textContent = 'Starting download…';
+                        await window.electronAPI.downloadUpdate();
+                    };
                     return;
                 }
             } catch (err) {
