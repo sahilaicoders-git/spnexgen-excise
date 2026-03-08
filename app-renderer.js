@@ -1219,6 +1219,17 @@
             window.electronAPI.navigateHome();
             return;
         }
+        // Ctrl+P — Print active brandwise or MML brandwise report
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+            const bwActive  = document.getElementById('sub-brandwise')?.classList.contains('active');
+            const mmlActive = document.getElementById('sub-mml-brandwise')?.classList.contains('active');
+            if (bwActive || mmlActive) {
+                e.preventDefault();
+                if (bwActive)  document.getElementById('bwPrintBtn')?.click();
+                else           document.getElementById('mmlBwPrintBtn')?.click();
+                return;
+            }
+        }
         // Navigate tabs: Left / Right arrows (when no input/tab is focused)
         if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT') return;
         // Skip if a nav tab already has focus — its own keydown handler covers it
@@ -4876,11 +4887,13 @@
 
         // Print
         function printBwReport() {
+            if (!bwFiltered.length || !bwSizeCols.length) return;
             const fromStr = bwIsRangeMode ? (bwDateFrom ? bwDateFrom.value : '') : bwFyStartDate;
             const toStr   = bwIsRangeMode ? (bwDateTo   ? bwDateTo.value   : '') : (bwSingleDate ? bwSingleDate.value : '');
             const barName = activeBar.barName || '';
             const licNo = activeBar.licenseNo || activeBar.licNo || '—';
             const fy = bwFyBadge ? bwFyBadge.textContent : '';
+            const address = [activeBar.address, activeBar.area, activeBar.city, activeBar.state, activeBar.pinCode].filter(Boolean).join(', ');
             const fmtDate = (s) => { if (!s) return '—'; const [y,m,d] = s.split('-'); return d+'/'+m+'/'+y; };
             const effectiveDateRaw = toStr || new Date().toISOString().slice(0, 10);
             const asOnDate = fmtDate(effectiveDateRaw);
@@ -4942,22 +4955,22 @@
 
             function printCatSubHeaders(sizeCols) {
                 const nSizes = sizeCols.length;
-                const groupBoundaryStyle = (si) => `${si === 0 ? 'border-left:2px solid #475569;' : ''}${si === nSizes - 1 ? 'border-right:2px solid #475569;' : ''}`;
-                const grpHdrStyle = `border-left:2px solid #475569;border-right:2px solid #475569`;
+                const groupBoundaryStyle = (si) => `${si === 0 ? 'border-left:2px solid #000;' : ''}${si === nSizes - 1 ? 'border-right:2px solid #000;' : ''}`;
+                const grpHdrStyle = `border-left:2px solid #000;border-right:2px solid #000`;
                 let lines = `
                     <tr class="cat-subhead-group">
-                        <td class="cat-subhead-stub" style="width:20px">Sr.</td>
-                        <td class="cat-subhead-stub" style="width:88px">Brand Name</td>
-                        <td class="cat-subhead-stub" style="width:${tpW}px;border-right:2px solid #475569">TP No.</td>
+                        <td class="cat-subhead-stub" style="width:20px">Sr.No</td>
+                        <td class="cat-subhead-stub" style="width:88px">Item Name</td>
+                        <td class="cat-subhead-stub" style="width:${tpW}px;border-right:2px solid #000">TP No.</td>
                         <td colspan="${nSizes}" style="${grpHdrStyle}">OPENING</td>
-                        <td colspan="${nSizes}" style="${grpHdrStyle}">PURCHASE</td>
+                        <td colspan="${nSizes}" style="${grpHdrStyle}">RECEIVED</td>
                         <td colspan="${nSizes}" style="${grpHdrStyle}">SALES</td>
                         <td colspan="${nSizes}" style="${grpHdrStyle}">CLOSING</td>
                     </tr>
                     <tr class="cat-subhead-sizes">
                         <td class="cat-subhead-stub" style="width:20px"></td>
                         <td class="cat-subhead-stub" style="width:88px"></td>
-                        <td class="cat-subhead-stub" style="width:${tpW}px;border-right:2px solid #475569"></td>
+                        <td class="cat-subhead-stub" style="width:${tpW}px;border-right:2px solid #000"></td>
                 `;
                 ['opening', 'purchase', 'sales', 'closing'].forEach(() => {
                     sizeCols.forEach((sz, si) => {
@@ -4972,7 +4985,7 @@
             function printCatTotalRow(catLabel) {
                 if (!catLabel) return '';
                 const nSizes = currentCatSizes.length;
-                const groupBoundaryStyle = (si) => `${si === 0 ? 'border-left:2px solid #475569;' : ''}${si === nSizes - 1 ? 'border-right:2px solid #475569;' : ''}`;
+                const groupBoundaryStyle = (si) => `${si === 0 ? 'border-left:2px solid #000;' : ''}${si === nSizes - 1 ? 'border-right:2px solid #000;' : ''}`;
                 let line = `<tr class="cat-total"><td colspan="3" style="text-align:left">${catLabel} Total</td>`;
                 catOpen.forEach((v, si) => { const sz = currentCatSizes[si]; line += `<td class="bw-print-qty" style="width:${szW(sz)}px;${groupBoundaryStyle(si)}">${fmtQtyCell(v)}</td>`; });
                 catPur.forEach((v, si)  => { const sz = currentCatSizes[si]; line += `<td class="bw-print-qty" style="width:${szW(sz)}px;${groupBoundaryStyle(si)}">${fmtQtyCell(v)}</td>`; });
@@ -5007,7 +5020,7 @@
                 const tpFormatted = [...row.tpNumbers].map(t => { const j = t.lastIndexOf('/'); return j >= 0 ? t.slice(j + 1) : t; }).join(', ') || '—';
                 tbody += `<tr><td class="bw-print-sr">${catSr}</td><td class="bw-print-brand" title="${esc(row.brandName)}">${esc(printBrandShort)}</td><td class="bw-print-tp" style="width:${tpW}px">${esc(tpFormatted)}</td>`;
                 const nSizes = currentCatSizes.length;
-                const groupBoundaryStyle = (si) => `${si === 0 ? 'border-left:2px solid #475569;' : ''}${si === nSizes - 1 ? 'border-right:2px solid #475569;' : ''}`;
+                const groupBoundaryStyle = (si) => `${si === 0 ? 'border-left:2px solid #000;' : ''}${si === nSizes - 1 ? 'border-right:2px solid #000;' : ''}`;
                 ['opening', 'purchase', 'sale', 'closing'].forEach(fld => {
                     currentCatSizes.forEach((sz, si) => {
                         const v = row.sizes[sz] ? row.sizes[sz][fld] : 0;
@@ -5028,66 +5041,45 @@
                 @page{size:legal landscape;margin:6mm 9mm 10mm}
                 @page :first{margin-top:6mm}
                 html,body{width:100%;margin:0;padding:0}
-                body{font-family:'Segoe UI',Arial,sans-serif;padding:0 1mm;font-size:8pt;color:#111}
-                .print-head{border:2px solid #334155;border-radius:4px;margin-bottom:5px;overflow:hidden}
-                .hdr-top{background:#1e3a5f;color:#fff;text-align:center;padding:3px 8px}
-                .hdr-top-title{font-size:11pt;font-weight:800;letter-spacing:.5px;line-height:1.2}
-                .hdr-top-sub{font-size:7pt;font-weight:600;letter-spacing:.06em;opacity:.9;margin-top:1px}
-                .hdr-bottom{display:flex;align-items:stretch;border-top:1.5px solid #334155}
-                .hdr-col{flex:1;padding:3px 8px;font-size:7.5pt;color:#1e293b;border-right:1px solid #cbd5e1}
-                .hdr-col:last-child{border-right:none}
-                .hdr-col-center{flex:1.2;text-align:center}
-                .hdr-field{display:flex;gap:4px;align-items:baseline;line-height:1.5}
-                .hdr-field-center{justify-content:center}
-                .hdr-lbl{font-weight:700;color:#475569;font-size:6.8pt;white-space:nowrap}
-                .hdr-val{font-weight:700;color:#0f172a;font-size:7.5pt}
-                .hdr-val-lg{font-size:8.5pt;font-weight:800;color:#1e3a5f}
+                body{font-family:'Segoe UI',Arial,sans-serif;padding:0 1mm;font-size:8pt;color:#000}
+                .print-head{text-align:center;border-top:2px solid #000;border-bottom:1px solid #000;padding:5px 0;margin-bottom:4px}
+                .ph-bar-name{font-size:14pt;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#000;line-height:1.3}
+                .ph-meta-line{font-size:8pt;color:#000;margin-top:1px;line-height:1.5}
                 table{border-collapse:collapse;width:auto;table-layout:fixed}
-                th,td{border:1px solid #8b8b8b;padding:1.5px 2px;font-size:7pt;line-height:1.2}
-                th{background:#f3f4f6;font-weight:700;border:1.5px solid #475569;white-space:nowrap}
-                td{white-space:nowrap;overflow:hidden}
+                th,td{border:1px dashed #000;padding:1.5px 2px;font-size:7pt;line-height:1.2}
+                th{background:#fff;font-weight:700;border:1.5px solid #000;white-space:nowrap;color:#000}
+                td{white-space:nowrap;overflow:hidden;color:#000}
                 .bw-print-sr{width:20px;text-align:center}
                 .bw-print-brand{width:88px;text-align:left;overflow:hidden;text-overflow:ellipsis}
                 .bw-print-tp{text-align:center;font-size:6.5pt;white-space:normal;word-break:break-word;line-height:1.2}
                 .bw-print-qty{text-align:center;font-size:6.8pt;padding:1px 2px;white-space:nowrap}
-                .cat-head td{background:#e8ecff;font-weight:700;color:#1f3f8f;border:2px solid #475569}
+                .cat-head td{background:#fff;font-weight:700;color:#000;border:2px solid #000}
                 .cat-head-main{font-size:8.5pt;font-weight:700}
                 .cat-head.new-page td{page-break-before:always;break-before:page}
-                .cat-subhead-group td{background:#eef2ff;font-size:6.8pt;font-weight:700;text-align:center;white-space:nowrap;line-height:1.1;padding:1px 2px}
-                .cat-subhead-stub{font-size:6.8pt;text-align:left;font-weight:700;white-space:nowrap}
-                .cat-subhead-sizes td{background:#f8fafc;font-size:6.5pt;text-align:center;white-space:nowrap;border:1.5px solid #1e293b;font-weight:700}
-                .cat-total td{background:#f0f4f8;font-weight:700;border-top:2px solid #475569;border-bottom:2px solid #475569}
+                .cat-subhead-group td{background:#fff;font-size:6.8pt;font-weight:700;text-align:center;white-space:nowrap;line-height:1.1;padding:1px 2px;color:#000;border:1.5px solid #000}
+                .cat-subhead-stub{font-size:6.8pt;text-align:left;font-weight:700;white-space:nowrap;color:#000}
+                .cat-subhead-sizes td{background:#fff;font-size:6.5pt;text-align:center;white-space:nowrap;border:1.5px solid #000;font-weight:700;color:#000}
+                .cat-total td{background:#fff;font-weight:700;border-top:2px solid #000;border-bottom:2px solid #000;border-left:1px dashed #000;border-right:1px dashed #000;color:#000}
                 .cat-spacer td{border:none;height:5px;background:transparent;padding:0}
                 tr{page-break-inside:avoid}
                 thead{display:table-header-group}
-                .repeat-hdr td{background:#1e3a5f;color:#fff;font-size:7pt;font-weight:700;padding:3px 8px;white-space:nowrap;border:none}
-                .repeat-hdr .rh-bar{display:inline-block;margin-right:14px}
-                .repeat-hdr .rh-lbl{opacity:.75;font-weight:600;margin-right:3px}
-                .repeat-hdr .rh-pg{float:right;opacity:.8;font-weight:600}
+                .repeat-hdr td{border-top:1.5px solid #000;border-bottom:1px solid #000;border-left:none;border-right:none;font-size:7pt;font-weight:700;padding:2px 0;white-space:nowrap;color:#000;background:#fff}
+                .repeat-hdr .rh-bar{display:inline-block;margin-right:16px}
+                .repeat-hdr .rh-lbl{font-weight:700;margin-right:2px;color:#000}
+                .repeat-hdr .rh-val{font-weight:400;color:#000}
+                .repeat-hdr .rh-pg{float:right;font-weight:600}
                 </style>
             </head><body>
                 <div style="width:max-content;min-width:100%">
                 <div class="print-head">
-                    <div class="hdr-top">
-                        <div class="hdr-top-title">BRANDWISE STOCK REGISTER</div>
-                        <div class="hdr-top-sub">FORM FLR :- 1A/2A/3A (FL) &nbsp;|&nbsp; DAILY BRANDWISE REGISTER</div>
-                    </div>
-                    <div class="hdr-bottom">
-                        <div class="hdr-col">
-                            <div class="hdr-field"><span class="hdr-lbl">BAR NAME:</span><span class="hdr-val">${barName || '—'}</span></div>
-                            <div class="hdr-field"><span class="hdr-lbl">LIC NO:</span><span class="hdr-val">${licNo}</span></div>
-                        </div>
-                        <div class="hdr-col hdr-col-center">
-                            <div class="hdr-field hdr-field-center"><span class="hdr-lbl">AS ON DATE:</span><span class="hdr-val-lg">${asOnDate}</span></div>
-                        </div>
-                        <div class="hdr-col" style="text-align:right">
-                            <div class="hdr-field" style="justify-content:flex-end"><span class="hdr-lbl">FY:</span><span class="hdr-val">${fy || '—'}</span></div>
-                        </div>
-                    </div>
+                    <div class="ph-bar-name">${barName || '—'}</div>
+                    <div class="ph-meta-line">License No: ${licNo}</div>
+                    <div class="ph-meta-line">Address: ${address || '—'}</div>
+                    <div class="ph-meta-line">Date: ${asOnDate}</div>
                 </div>
                 <table>
                 <thead><tr class="repeat-hdr"><td colspan="999"
-                ><span class="rh-bar"><span class="rh-lbl">BRANDWISE STOCK REGISTER</span></span><span class="rh-bar"><span class="rh-lbl">Bar:</span>${barName || '—'}</span><span class="rh-bar"><span class="rh-lbl">Lic:</span>${licNo}</span><span class="rh-bar"><span class="rh-lbl">As On:</span>${asOnDate}</span><span class="rh-bar"><span class="rh-lbl">FY:</span>${fy || '—'}</span></td></tr></thead>
+                ><span class="rh-bar"><span class="rh-lbl">${barName || '—'}</span></span><span class="rh-bar"><span class="rh-lbl">Lic:</span> <span class="rh-val">${licNo}</span></span><span class="rh-bar"><span class="rh-lbl">Date:</span> <span class="rh-val">${asOnDate}</span></span><span class="rh-bar"><span class="rh-lbl">FY:</span> <span class="rh-val">${fy || '—'}</span></span></td></tr></thead>
                 <tbody>${tbody}</tbody></table>
                 </div>
             </body></html>`);
@@ -5704,6 +5696,26 @@
                 }
             }
 
+            // ── Bulk LTR computation ──
+            const fmtB = n => (n || 0).toFixed(3);
+            let bulkTbody = '';
+            let gOT = 0, gRT = 0, gST = 0, gCT = 0;
+            for (const g of CATEGORY_GROUPS) {
+                const bSizes = sortedGroupSizes[g.key] || [];
+                if (bSizes.length === 0) continue;
+                let bO = 0, bR = 0, bS = 0, bC = 0;
+                for (const ml of bSizes) {
+                    const ck = colKey(g.key, ml);
+                    bO += (data['opening'][ck]  || 0) * ml / 1000;
+                    bR += (data['received'][ck] || 0) * ml / 1000;
+                    bS += (data['sold'][ck]     || 0) * ml / 1000;
+                    bC += (data['closing'][ck]  || 0) * ml / 1000;
+                }
+                bulkTbody += `<tr><td class="blk-label">${g.label}</td><td class="blk-num">${fmtB(bO)}</td><td class="blk-num">${fmtB(bR)}</td><td class="blk-num">${fmtB(bS)}</td><td class="blk-num">${fmtB(bC)}</td></tr>`;
+                gOT += bO; gRT += bR; gST += bS; gCT += bC;
+            }
+            bulkTbody += `<tr class="blk-total"><td class="blk-label"><strong>TOTAL :</strong></td><td class="blk-num"><strong>${fmtB(gOT)}</strong></td><td class="blk-num"><strong>${fmtB(gRT)}</strong></td><td class="blk-num"><strong>${fmtB(gST)}</strong></td><td class="blk-num"><strong>${fmtB(gCT)}</strong></td></tr>`;
+
             printWithIframe(`<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>F.L.R.-4 — ${barName} — ${monthName} ${selYear}</title>
@@ -5765,6 +5777,17 @@
   .footer{margin-top:12px;display:flex;justify-content:space-between;font-size:7.5pt;color:#475569}
   .sig-line{border-top:1px solid #64748b;padding-top:3px;min-width:140px;text-align:center;font-size:7pt}
   .print-note{font-size:6.5pt;color:#94a3b8;text-align:center;margin-top:6px}
+
+  /* ── Bulk LTR section ── */
+  .bulk-section{margin-top:14px;page-break-inside:avoid}
+  .bulk-title{font-size:9pt;font-weight:800;color:#1e3a8a;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #1e3a8a;padding-bottom:3px}
+  .bulk-table{border-collapse:collapse;font-size:8pt;min-width:400px}
+  .bulk-table th,.bulk-table td{border:1px solid #94a3b8;padding:4px 12px}
+  .bulk-table thead th{background:#1e3a8a;color:#fff;font-weight:700;text-align:center}
+  .bulk-table thead th.blk-th-label{text-align:left}
+  .blk-label{text-align:left;font-weight:500;white-space:nowrap}
+  .blk-num{text-align:center;font-variant-numeric:tabular-nums}
+  .blk-total td{background:#eff6ff;font-weight:700;border-top:2px solid #1e3a8a}
 </style>
 </head><body>
   <div class="top-bar"></div>
@@ -5800,6 +5823,14 @@
     </thead>
     <tbody>${tbody}</tbody>
   </table>
+
+  <div class="bulk-section">
+    <div class="bulk-title">BULK LTR REPORT &mdash; Month of : ${monthName}, ${selYear}</div>
+    <table class="bulk-table">
+      <thead><tr><th class="blk-th-label">PARTICULARS</th><th>OPENING</th><th>RECEIVED</th><th>SALE</th><th>CLOSING STOCK</th></tr></thead>
+      <tbody>${bulkTbody}</tbody>
+    </table>
+  </div>
 
   <div class="footer">
     <div class="sig-line">Date &amp; Seal of Licensee</div>
@@ -6636,6 +6667,17 @@
                 }
             }
 
+            // ── MML Bulk LTR computation ──
+            const fmtB = n => (n || 0).toFixed(3);
+            let mmlBulkO = 0, mmlBulkR = 0, mmlBulkS = 0, mmlBulkC = 0;
+            for (const ml of sortedSizes) {
+                const ck = mmlColKey(ml);
+                mmlBulkO += (data['opening'][ck]  || 0) * ml / 1000;
+                mmlBulkR += (data['received'][ck] || 0) * ml / 1000;
+                mmlBulkS += (data['sold'][ck]     || 0) * ml / 1000;
+                mmlBulkC += (data['closing'][ck]  || 0) * ml / 1000;
+            }
+
             printWithIframe(`<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>MML F.L.R.-4 — ${barName} — ${monthName} ${selYear}</title>
@@ -6692,6 +6734,17 @@
   .footer{margin-top:12px;display:flex;justify-content:space-between;font-size:7.5pt;color:#475569}
   .sig-line{border-top:1px solid #64748b;padding-top:3px;min-width:140px;text-align:center;font-size:7pt}
   .print-note{font-size:6.5pt;color:#94a3b8;text-align:center;margin-top:6px}
+
+  /* ── Bulk LTR section ── */
+  .bulk-section{margin-top:14px;page-break-inside:avoid}
+  .bulk-title{font-size:9pt;font-weight:800;color:#065f46;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #065f46;padding-bottom:3px}
+  .bulk-table{border-collapse:collapse;font-size:8pt;min-width:400px}
+  .bulk-table th,.bulk-table td{border:1px solid #6ee7b7;padding:4px 12px}
+  .bulk-table thead th{background:#065f46;color:#fff;font-weight:700;text-align:center}
+  .bulk-table thead th.blk-th-label{text-align:left}
+  .blk-label{text-align:left;font-weight:500;white-space:nowrap}
+  .blk-num{text-align:center;font-variant-numeric:tabular-nums}
+  .blk-total td{background:#d1fae5;font-weight:700;border-top:2px solid #065f46}
 </style>
 </head><body>
   <div class="top-bar"></div>
@@ -6727,6 +6780,17 @@
     </thead>
     <tbody>${tbody}</tbody>
   </table>
+
+  <div class="bulk-section">
+    <div class="bulk-title">MML BULK LTR REPORT &mdash; Month of : ${monthName}, ${selYear}</div>
+    <table class="bulk-table">
+      <thead><tr><th class="blk-th-label">PARTICULARS</th><th>OPENING</th><th>RECEIVED</th><th>SALE</th><th>CLOSING STOCK</th></tr></thead>
+      <tbody>
+        <tr><td class="blk-label">MML</td><td class="blk-num">${fmtB(mmlBulkO)}</td><td class="blk-num">${fmtB(mmlBulkR)}</td><td class="blk-num">${fmtB(mmlBulkS)}</td><td class="blk-num">${fmtB(mmlBulkC)}</td></tr>
+        <tr class="blk-total"><td class="blk-label"><strong>TOTAL :</strong></td><td class="blk-num"><strong>${fmtB(mmlBulkO)}</strong></td><td class="blk-num"><strong>${fmtB(mmlBulkR)}</strong></td><td class="blk-num"><strong>${fmtB(mmlBulkS)}</strong></td><td class="blk-num"><strong>${fmtB(mmlBulkC)}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <div class="footer">
     <div class="sig-line">Date &amp; Seal of Licensee</div>
@@ -7152,6 +7216,7 @@
 
         /* ── Print ── */
         function printMmlBwReport() {
+            if (!mmlBwFiltered.length || !mmlBwSizeCols.length) return;
             const fromStr = mmlBwDateFrom ? mmlBwDateFrom.value : '';
             const toStr = mmlBwDateTo ? mmlBwDateTo.value : '';
             const barName = activeBar.barName || '';

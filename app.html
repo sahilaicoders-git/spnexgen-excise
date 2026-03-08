@@ -1640,60 +1640,83 @@
 
                     <!-- Toolbar -->
                     <div class="bw-toolbar">
-                        <div class="bw-toolbar-left">
-                            <div class="bw-title-row">
-                                <h2 class="bw-title">📊 Brandwise Stock Register</h2>
+
+                        <!-- ROW 1: Identity strip -->
+                        <div class="bw-toolbar-strip">
+                            <div class="bw-strip-left">
+                                <div class="bw-strip-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                                </div>
+                                <div>
+                                    <div class="bw-strip-title">Brandwise Stock Register</div>
+                                    <div class="bw-strip-sub">Form FLR 1A/2A/3A (FL) &nbsp;·&nbsp; Daily Brandwise Register</div>
+                                </div>
+                            </div>
+                            <div class="bw-strip-right">
                                 <span class="bw-fy-badge" id="bwFyBadge"></span>
+                                <div class="bw-strip-meta">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    As on: <strong id="bwAsOnDate">—</strong>
+                                </div>
                             </div>
-                            <div class="bw-form-label">FORM FLR :- 1A/2A/3A (FL) &nbsp;|&nbsp; DAILY BRANDWISE REGISTER &nbsp;|&nbsp; AS ON DATE: <span id="bwAsOnDate">—</span></div>
                         </div>
-                        <div class="bw-toolbar-center">
-                            <!-- Single Date mode (default/active) -->
-                            <div class="bw-mode-group bw-single-group" id="bwSingleGroup" title="Single date mode">
-                                <label class="bw-date-label">As on Date
+
+                        <!-- ROW 2: Controls -->
+                        <div class="bw-toolbar-controls">
+                            <!-- Date + Generate -->
+                            <div class="bw-ctrl-date-group">
+                                <label class="bw-ctrl-label">As on Date</label>
+                                <div class="bw-ctrl-date-row">
                                     <input type="date" id="bwSingleDate" class="bw-date-input" />
-                                </label>
+                                    <button class="bw-btn bw-btn-go" id="bwGoBtn" title="Generate Report">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="5 12 19 12M13 6l6 6-6 6"/></svg>
+                                        Generate
+                                    </button>
+                                </div>
                             </div>
 
-                            <!-- Divider -->
-                            <div class="bw-mode-divider" id="bwModeDivider">
-                                <span class="bw-mode-or">or</span>
+                            <div class="bw-ctrl-divider"></div>
+
+                            <!-- Filters -->
+                            <div class="bw-ctrl-filters">
+                                <label class="bw-ctrl-label">Filters</label>
+                                <div class="bw-ctrl-filter-row">
+                                    <label class="bw-toggle-label" title="Show/Hide MML products">
+                                        <input type="checkbox" id="bwMmlToggle" checked />
+                                        <span class="bw-toggle-text">MML</span>
+                                    </label>
+                                    <select id="bwCategoryFilter" class="bw-select" title="Filter by Category">
+                                        <option value="">All Categories</option>
+                                    </select>
+                                    <div class="bw-search-wrap">
+                                        <svg class="bw-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                        <input type="text" id="bwSearch" class="bw-search" placeholder="Search brand…" />
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Range mode (dimmed until clicked) -->
-                            <div class="bw-mode-group bw-range-group bw-range-dimmed" id="bwRangeGroup" title="Click to switch to date range mode">
-                                <label class="bw-date-label">From
-                                    <input type="date" id="bwDateFrom" class="bw-date-input" disabled />
-                                </label>
-                                <label class="bw-date-label">To
-                                    <input type="date" id="bwDateTo" class="bw-date-input" disabled />
-                                </label>
-                            </div>
+                            <div class="bw-ctrl-divider"></div>
 
-                            <button class="bw-btn bw-btn-go" id="bwGoBtn" title="Generate Report">Generate</button>
+                            <!-- Actions -->
+                            <div class="bw-ctrl-actions">
+                                <label class="bw-ctrl-label">Export &amp; Print</label>
+                                <div class="bw-action-group">
+                                    <button class="bw-btn bw-btn-csv" id="bwExportBtn" title="Export to CSV">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        CSV
+                                    </button>
+                                    <button class="bw-btn bw-btn-print" id="bwPrintBtn" title="Print Report (Ctrl+P)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                        Print <kbd class="bw-kbd">Ctrl+P</kbd>
+                                    </button>
+                                    <button class="bw-btn bw-btn-preview" id="bwPreviewBtn" title="Print Preview">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        Preview
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="bw-toolbar-right">
-                            <label class="bw-toggle-label" title="Show/Hide MML products">
-                                <input type="checkbox" id="bwMmlToggle" checked />
-                                <span class="bw-toggle-text">MML</span>
-                            </label>
-                            <select id="bwCategoryFilter" class="bw-select" title="Filter by Category">
-                                <option value="">All Categories</option>
-                            </select>
-                            <input type="text" id="bwSearch" class="bw-search" placeholder="Search brand…" />
-                            <button class="bw-btn bw-btn-icon" id="bwExportBtn" title="Export CSV">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                CSV
-                            </button>
-                            <button class="bw-btn bw-btn-icon" id="bwPrintBtn" title="Print Report">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                                Print
-                            </button>
-                            <button class="bw-btn bw-btn-icon" id="bwPreviewBtn" title="PDF Preview">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                Preview
-                            </button>
-                        </div>
+
                     </div>
 
                     <!-- Summary Cards -->
