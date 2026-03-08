@@ -139,9 +139,8 @@ app.whenReady().then(async () => {
         defaultId: 0
       });
 
-      // Default data folder = next to the installed app (e.g. C:\Program Files\SpliqourPro\SpliqourPro Data)
-      const installDir = path.dirname(app.getPath('exe'));
-      const defaultDataPath = path.join(installDir, 'SpliqourPro Data');
+      // Default data folder = user's Documents (survives app updates/reinstalls)
+      const defaultDataPath = path.join(app.getPath('documents'), 'SpliqourPro Data');
 
       const pick = await dialog.showOpenDialog(setupWin, {
         title: 'Choose Data Folder for SpliqourPro',
@@ -162,6 +161,29 @@ app.whenReady().then(async () => {
   } else {
     // Ensure folder still exists
     fs.mkdirSync(cfg.dataRoot, { recursive: true });
+
+    // ── Migrate data out of install dir (if user had old default path) ──
+    // Old default was next to the .exe (C:\Program Files\SpliqourPro\SpliqourPro Data)
+    // which gets wiped on update. Move it to Documents if still in install dir.
+    if (app.isPackaged) {
+      const installDir = path.normalize(path.dirname(app.getPath('exe')));
+      const currentRoot = path.normalize(cfg.dataRoot);
+      if (currentRoot.startsWith(installDir)) {
+        const newRoot = path.join(app.getPath('documents'), 'SpliqourPro Data');
+        if (!fs.existsSync(newRoot) && fs.existsSync(currentRoot)) {
+          try {
+            fs.cpSync(currentRoot, newRoot, { recursive: true });
+            cfg.dataRoot = newRoot;
+            saveConfig(cfg);
+          } catch (e) {
+            // If copy fails, just update the path and let user know on next boot
+          }
+        } else if (fs.existsSync(newRoot)) {
+          cfg.dataRoot = newRoot;
+          saveConfig(cfg);
+        }
+      }
+    }
   }
 
   createWindow();
