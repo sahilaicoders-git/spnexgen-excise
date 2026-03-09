@@ -234,6 +234,40 @@
     box-shadow: 0 2px 8px var(--primary-glow);
 }
 
+/* ── FY Filter Toggle ── */
+.fy-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 16px;
+    height: 46px;
+    border-radius: 12px;
+    border: 1.5px solid var(--panel-border);
+    background: var(--panel-bg);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.fy-filter-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.fy-filter-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 14px var(--primary-glow);
+}
+.fy-filter-btn.active:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+    color: #fff;
+}
+
 /* ── Bar Cards Grid ── */
 .bar-grid-container {
     flex: 1;
@@ -421,6 +455,86 @@
 
 .btn-empty-add {
     margin-top: 8px;
+}
+
+/* ── Data Folder Strip ── */
+.data-folder-strip {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 10px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    animation: fadeSlideIn 0.4s ease-out 0.15s both;
+}
+
+.df-icon {
+    display: flex;
+    align-items: center;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.df-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    flex-shrink: 0;
+}
+
+.df-path {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Consolas', 'Menlo', monospace;
+    min-width: 0;
+}
+
+.df-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+
+.df-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: var(--input-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    line-height: 1;
+}
+
+.df-btn:hover {
+    background: var(--input-border);
+    color: var(--text-main);
+    border-color: var(--primary);
+}
+
+.df-btn--change {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.df-btn--change:hover {
+    background: var(--primary);
+    color: #fff;
 }
 
 /* ── Home Status Bar ── */

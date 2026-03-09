@@ -16,12 +16,20 @@ autoUpdater.on('update-downloaded', () => {
 let mainWindow;
 
 // ── Config & Data-Root ─────────────────────────────────────
+// Primary config: AppData/Roaming/SpliqourPro/spliqour-config.json
+//   → survives updates and reinstalls (deleteAppDataOnUninstall: false)
+// Backup config:  Documents/SpliqourPro Data/spliqour-config.json
+//   → survives even if AppData is wiped; written on every save
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'spliqour-config.json');
+}
+function getBackupConfigPath() {
+  return path.join(app.getPath('documents'), 'SpliqourPro Data', 'spliqour-config.json');
 }
 let _cfgCache = null;
 function loadConfig() {
   if (_cfgCache) return _cfgCache;
+  // 1. Primary: %APPDATA%\SpliqourPro\spliqour-config.json
   try {
     const cp = getConfigPath();
     if (fs.existsSync(cp)) {
@@ -29,13 +37,29 @@ function loadConfig() {
       return _cfgCache;
     }
   } catch (e) {}
+  // 2. Backup: Documents\SpliqourPro Data\spliqour-config.json
+  //    (written on every save — allows recovery after AppData is cleared)
+  try {
+    const bp = getBackupConfigPath();
+    if (fs.existsSync(bp)) {
+      _cfgCache = JSON.parse(fs.readFileSync(bp, 'utf8'));
+      return _cfgCache;
+    }
+  } catch (e) {}
   return {};
 }
 function saveConfig(cfg) {
   _cfgCache = cfg;
+  // Primary save
   const cp = getConfigPath();
   fs.mkdirSync(path.dirname(cp), { recursive: true });
   fs.writeFileSync(cp, JSON.stringify(cfg, null, 2));
+  // Backup save — always written to Documents so selection survives reinstalls
+  try {
+    const bp = getBackupConfigPath();
+    fs.mkdirSync(path.dirname(bp), { recursive: true });
+    fs.writeFileSync(bp, JSON.stringify(cfg, null, 2));
+  } catch (e) { /* non-fatal */ }
 }
 function getDataRoot() {
   const cfg = loadConfig();
@@ -59,12 +83,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true
     },
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#13132e',
-      symbolColor: '#9ca3af',
-      height: 38
-    }
+    titleBarStyle: 'hidden'
   });
 
   // Start at the bar-selection home screen
@@ -1936,5 +1955,6 @@ ipcMain.handle('download-update', async () => {
 });
 
 ipcMain.handle('install-update', () => {
-  autoUpdater.quitAndInstall();
+  // isSilent=true: no installer UI shown; isForceRunAfter=true: relaunch after install
+  autoUpdater.quitAndInstall(true, true);
 });

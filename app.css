@@ -16,54 +16,7 @@
    WINDOW CONTROLS  (min / max / close)
    ══════════════════════════════════════════════════════════ */
 
-.win-controls {
-    position: absolute;
-    top: 0;
-    right: 0;
-    height: 38px;
-    display: flex;
-    align-items: stretch;
-    z-index: 300;
-    -webkit-app-region: no-drag;
-}
-
-body.win-maximized .win-controls { height: 30px; }
-
-.wc-btn {
-    width: 46px;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease;
-    outline: none;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
-}
-
-[data-theme="dark"] .wc-btn {
-    color: rgba(255, 255, 255, 0.5);
-    background: #13132e;
-}
-[data-theme="light"] .wc-btn {
-    color: rgba(255, 255, 255, 0.55);
-    background: #312e81;
-}
-
-[data-theme="dark"] .wc-btn:hover  { background: rgba(99, 102, 241, 0.22); color: #fff; }
-[data-theme="dark"] .wc-btn:active { background: rgba(99, 102, 241, 0.34); }
-[data-theme="light"] .wc-btn:hover  { background: rgba(255, 255, 255, 0.12); color: #fff; }
-[data-theme="light"] .wc-btn:active { background: rgba(255, 255, 255, 0.2); }
-
-.wc-close:hover  { background: #e81123 !important; color: #fff !important; }
-.wc-close:active { background: #c4051b !important; }
-
-.wc-icon-restore { display: none; }
-body.win-maximized .wc-icon-maximize { display: none; }
-body.win-maximized .wc-icon-restore  { display: block; }
+/* win-controls styles are in styles.css (shared across app + home) */
 
 /* â”€â”€ Top Bar â”€â”€ */
 .app-top-bar {
@@ -76,21 +29,21 @@ body.win-maximized .wc-icon-restore  { display: block; }
 }
 
 [data-theme="dark"] .app-top-bar {
-    background: linear-gradient(180deg, #0d0d1a 0%, #111128 60%, #13132e 100%);
-    border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+    background: linear-gradient(180deg, #0c0d10 0%, #111318 60%, #13161c 100%);
+    border-bottom: 1px solid rgba(5, 150, 105, 0.18);
     box-shadow:
-        0 1px 0 rgba(99, 102, 241, 0.1),
+        0 1px 0 rgba(5, 150, 105, 0.1),
         0 4px 32px rgba(0, 0, 0, 0.65),
         inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="light"] .app-top-bar {
-    background: linear-gradient(180deg, #1e1b4b 0%, #2d2b6b 60%, #312e81 100%);
-    border-bottom: 1px solid rgba(99, 102, 241, 0.35);
+    background: linear-gradient(180deg, #0c0d10 0%, #111318 60%, #13161c 100%);
+    border-bottom: 1px solid rgba(5, 150, 105, 0.3);
     box-shadow:
-        0 1px 0 rgba(99, 102, 241, 0.15),
-        0 4px 24px rgba(30, 27, 75, 0.45),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        0 1px 0 rgba(5, 150, 105, 0.12),
+        0 4px 24px rgba(0, 0, 0, 0.5),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
 }
 
 .top-bar-inner {
@@ -119,16 +72,16 @@ body.win-maximized .wc-icon-restore  { display: block; }
     align-items: center;
     justify-content: center;
     border-radius: 9px;
-    background: linear-gradient(135deg, rgba(91, 95, 239, 0.18), rgba(124, 127, 247, 0.08));
-    border: 1px solid rgba(99, 102, 241, 0.22);
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.2), rgba(16, 185, 129, 0.08));
+    border: 1px solid rgba(5, 150, 105, 0.28);
     flex-shrink: 0;
     transition: all 0.22s ease;
-    box-shadow: 0 2px 10px rgba(91, 95, 239, 0.12);
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.15);
 }
 
 .tb-brand-mark:hover {
-    background: linear-gradient(135deg, rgba(91, 95, 239, 0.25), rgba(124, 127, 247, 0.14));
-    box-shadow: 0 4px 16px rgba(91, 95, 239, 0.22);
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.32), rgba(16, 185, 129, 0.16));
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.28);
     transform: scale(1.04);
 }
 
@@ -147,14 +100,14 @@ body.win-maximized .wc-icon-restore  { display: block; }
     font-size: 13px;
     font-weight: 800;
     letter-spacing: 2.8px;
-    background: linear-gradient(135deg, #818cf8 0%, #c4b5fd 100%);
+    background: linear-gradient(135deg, #34d399 0%, #6ee7b7 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
 [data-theme="light"] .tb-logo {
-    background: linear-gradient(135deg, #a5b4fc 0%, #e9d5ff 100%);
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -166,11 +119,11 @@ body.win-maximized .wc-icon-restore  { display: block; }
     letter-spacing: 1.5px;
     padding: 2px 7px;
     border-radius: 5px;
-    background: linear-gradient(135deg, #5b5fef, #9d7ff8);
+    background: linear-gradient(135deg, #059669, #10b981);
     color: #fff;
     line-height: 1.3;
     text-transform: uppercase;
-    box-shadow: 0 2px 8px rgba(91, 95, 239, 0.35);
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
 }
 
 /* â”€â”€ Navigation Track â”€â”€ */
@@ -224,18 +177,18 @@ body.win-maximized .wc-icon-restore  { display: block; }
 }
 
 [data-theme="dark"] .tb-indicator {
-    background: linear-gradient(135deg, #5b5fef 0%, #7c7ff7 55%, #9d7ff8 100%);
+    background: linear-gradient(135deg, #059669 0%, #10b981 55%, #34d399 100%);
     box-shadow:
-        0 2px 14px rgba(99, 102, 241, 0.5),
-        0 0 28px rgba(99, 102, 241, 0.2),
+        0 2px 14px rgba(5, 150, 105, 0.55),
+        0 0 28px rgba(5, 150, 105, 0.22),
         inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 [data-theme="light"] .tb-indicator {
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #818cf8 100%);
+    background: linear-gradient(135deg, #047857 0%, #059669 55%, #10b981 100%);
     box-shadow:
-        0 2px 12px rgba(79, 70, 229, 0.38),
-        0 0 20px rgba(79, 70, 229, 0.14),
+        0 2px 12px rgba(5, 150, 105, 0.45),
+        0 0 20px rgba(5, 150, 105, 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
@@ -472,7 +425,7 @@ body.win-maximized .wc-icon-restore  { display: block; }
 
 [data-theme="dark"] .topbar-sub-row {
     background: rgba(0, 0, 0, 0.2);
-    border-top: 1px solid rgba(99, 102, 241, 0.14);
+    border-top: 1px solid rgba(5, 150, 105, 0.16);
 }
 
 [data-theme="light"] .topbar-sub-row {
@@ -505,11 +458,11 @@ body.win-maximized .wc-icon-restore  { display: block; }
 }
 
 [data-theme="dark"] .tsb-name {
-    color: rgba(200, 204, 255, 0.9);
+    color: rgba(180, 240, 210, 0.9);
 }
 
 [data-theme="light"] .tsb-name {
-    color: rgba(220, 225, 255, 0.92);
+    color: rgba(180, 240, 210, 0.92);
 }
 
 .tsb-fy {

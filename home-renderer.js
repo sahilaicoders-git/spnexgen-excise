@@ -28,6 +28,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statCurrentFY = document.getElementById('statCurrentFY');
     const statCities = document.getElementById('statCities');
 
+    // ── FY Filter ──────────────────────────────────────────
+    const fyFilterBtn = document.getElementById('fyFilterBtn');
+    const fyFilterLabel = document.getElementById('fyFilterLabel');
+    let fyFilterActive = true;
+
+    function currentFYString() {
+        const today = new Date();
+        const m = today.getMonth() + 1; // 1–12
+        const y = today.getFullYear();
+        const start = m >= 4 ? y : y - 1;
+        const end = start + 1;
+        // Match format stored in bar.financialYear e.g. "01/04/2025 to 31/03/2026"
+        return `${start}/${end}`; // used for substring match
+    }
+
+    function matchesCurrentFY(bar) {
+        const fy = bar.financialYear || '';
+        const today = new Date();
+        const m = today.getMonth() + 1;
+        const y = today.getFullYear();
+        const startYear = String(m >= 4 ? y : y - 1);
+        const endYear   = String(m >= 4 ? y + 1 : y);
+        return fy.includes(startYear) && fy.includes(endYear);
+    }
+
+    function applyFilters() {
+        const q = searchInput.value.toLowerCase();
+        let results = allBars;
+        if (fyFilterActive) results = results.filter(matchesCurrentFY);
+        if (q) results = results.filter(b =>
+            (b.barName || '').toLowerCase().includes(q) ||
+            (b.city || '').toLowerCase().includes(q) ||
+            (b.shopType || '').toLowerCase().includes(q) ||
+            (b.bar_id || '').toLowerCase().includes(q)
+        );
+        focusedIdx = 0;
+        render(results);
+    }
+
+    fyFilterBtn.addEventListener('click', () => {
+        fyFilterActive = !fyFilterActive;
+        fyFilterBtn.classList.toggle('active', fyFilterActive);
+        applyFilters();
+    });
+
     // ── Load bars ──────────────────────────────────────────
     let allBars = [];
     let filtered = [];
@@ -48,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         filtered = [...allBars];
         updateStats();
-        render(filtered);
+        applyFilters();
     }
 
     await loadBars();
@@ -151,17 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ── Search ─────────────────────────────────────────────
-    searchInput.addEventListener('input', () => {
-        const q = searchInput.value.toLowerCase();
-        const results = allBars.filter(b =>
-            (b.barName || '').toLowerCase().includes(q) ||
-            (b.city || '').toLowerCase().includes(q) ||
-            (b.shopType || '').toLowerCase().includes(q) ||
-            (b.bar_id || '').toLowerCase().includes(q)
-        );
-        focusedIdx = 0;
-        render(results);
-    });
+    searchInput.addEventListener('input', () => applyFilters());
 
     // ── Global keyboard shortcuts ──────────────────────────
     document.addEventListener('keydown', (e) => {
@@ -176,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Clear search
         if (e.key === 'Escape') {
             searchInput.value = '';
-            render([...allBars]);
+            applyFilters();
             searchInput.focus();
             return;
         }
@@ -206,6 +241,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (emptyAddBtn) {
         emptyAddBtn.addEventListener('click', () => window.electronAPI.navigateToAddBar());
     }
+
+    // ── Data Folder strip ─────────────────────────────────
+    const dataFolderPathEl = document.getElementById('dataFolderPath');
+    const openDataFolderBtn = document.getElementById('openDataFolderBtn');
+    const changeDataFolderBtn = document.getElementById('changeDataFolderBtn');
+
+    async function refreshDataFolderDisplay() {
+        try {
+            const res = await window.electronAPI.getDataRoot();
+            if (res && res.success) {
+                dataFolderPathEl.textContent = res.dataRoot;
+                dataFolderPathEl.title = res.dataRoot;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    await refreshDataFolderDisplay();
+
+    openDataFolderBtn.addEventListener('click', async () => {
+        await window.electronAPI.openDataFolder();
+    });
+
+    changeDataFolderBtn.addEventListener('click', async () => {
+        const res = await window.electronAPI.chooseDataFolder();
+        if (res && res.success) {
+            dataFolderPathEl.textContent = res.dataRoot;
+            dataFolderPathEl.title = res.dataRoot;
+            // Reload bars from new location
+            await loadBars();
+        }
+    });
 
     // ── Helpers ────────────────────────────────────────────
     function esc(str) {

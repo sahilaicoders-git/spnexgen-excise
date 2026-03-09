@@ -69,6 +69,57 @@ body {
   transition: background-color var(--transition), color var(--transition);
 }
 
+/* ══════════════════════════════════════════════════════════
+   WINDOW CONTROLS  (min / max / close) — pill-shaped
+   ══════════════════════════════════════════════════════════ */
+.win-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  z-index: 300;
+  -webkit-app-region: no-drag;
+}
+body.win-maximized .win-controls { height: 30px; }
+
+.wc-btn {
+  width: 34px;
+  height: 20px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  outline: none;
+  -webkit-app-region: no-drag;
+  color: rgba(0, 0, 0, 0.45);
+  transition: color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.wc-btn:hover  { color: rgba(0, 0, 0, 0.7); transform: scale(1.08); }
+.wc-btn:active { transform: scale(0.93); }
+
+.wc-min  { background: #fbbf24; box-shadow: 0 1px 5px rgba(251,191,36,0.4); }
+.wc-min:hover  { background: #f59e0b; box-shadow: 0 2px 10px rgba(251,191,36,0.65); }
+.wc-min:active { background: #d97706; }
+
+.wc-max  { background: #10b981; box-shadow: 0 1px 5px rgba(16,185,129,0.4); }
+.wc-max:hover  { background: #059669; box-shadow: 0 2px 10px rgba(16,185,129,0.65); }
+.wc-max:active { background: #047857; }
+
+.wc-close  { background: #ef4444; box-shadow: 0 1px 5px rgba(239,68,68,0.4); }
+.wc-close:hover  { background: #dc2626; box-shadow: 0 2px 10px rgba(239,68,68,0.65); }
+.wc-close:active { background: #b91c1c; }
+
+.wc-icon-restore { display: none; }
+body.win-maximized .wc-icon-maximize { display: none; }
+body.win-maximized .wc-icon-restore  { display: block; }
+
 /* ── App Shell ── */
 .app-container {
   display: flex;
@@ -78,6 +129,7 @@ body {
 
 /* ── Header ── */
 .app-header {
+  position: relative;
   background: var(--header-bg);
   border-bottom: 1px solid var(--header-border);
   display: flex;
