@@ -8551,6 +8551,8 @@ td.inv-col-closing {
 .ms-btn-go { background: var(--primary); color: #fff; border-color: var(--primary); }
 .ms-btn-go:hover { filter: brightness(1.1); }
 .ms-btn-icon svg { flex-shrink: 0; }
+.ms-btn-bw { background: #4b5563 !important; color: #fff !important; border-color: #374151 !important; }
+.ms-btn-bw:hover { background: #374151 !important; }
 [data-theme="dark"] .ms-btn:hover { background: rgba(255,255,255,.06); }
 
 /* 11 Months statement */

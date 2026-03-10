@@ -1958,3 +1958,36 @@ ipcMain.handle('install-update', () => {
   // isSilent=true: no installer UI shown; isForceRunAfter=true: relaunch after install
   autoUpdater.quitAndInstall(true, true);
 });
+
+// ─── Export HTML → PDF (Monthly Statement) ────────────────
+ipcMain.handle('export-html-pdf', async (event, { html, filename }) => {
+  const { dialog, BrowserWindow } = require('electron');
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save PDF',
+    defaultPath: filename || 'statement.pdf',
+    filters: [{ name: 'PDF File', extensions: ['pdf'] }],
+  });
+  if (result.canceled || !result.filePath) return { success: false, error: 'Cancelled' };
+
+  // Create a hidden off-screen window to render the HTML and print to PDF
+  const win = new BrowserWindow({
+    show: false,
+    webPreferences: { offscreen: false, nodeIntegration: false, contextIsolation: true },
+  });
+  try {
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    // Give styles time to apply
+    await new Promise(r => setTimeout(r, 800));
+    const pdfBuffer = await win.webContents.printToPDF({
+      landscape: true,
+      pageSize: 'A4',
+      printBackground: true,
+      margins: { marginType: 'custom', top: 0.3, bottom: 0.25, left: 0.25, right: 0.25 },
+    });
+    fs.writeFileSync(result.filePath, pdfBuffer);
+    shell.openPath(result.filePath);
+    return { success: true, filePath: result.filePath };
+  } finally {
+    win.destroy();
+  }
+});

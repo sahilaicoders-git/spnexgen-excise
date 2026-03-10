@@ -36,6 +36,12 @@
 
     // ── Shared print helper ── use hidden iframe so Chromium shows its own print preview ──
     let _previewMode = false;
+    function downloadPdf(html, filename) {
+        if (window.electronAPI?.exportHtmlPdf) {
+            window.electronAPI.exportHtmlPdf({ html, filename }).catch(() => {});
+        }
+    }
+
     function printWithIframe(html) {
         if (_previewMode) {
             _previewMode = false;
@@ -5148,7 +5154,8 @@
         const msYearSelect  = document.getElementById('msYearSelect');
         const msGoBtn       = document.getElementById('msGoBtn');
         const msExportBtn   = document.getElementById('msExportBtn');
-        const msPrintBtn    = document.getElementById('msPrintBtn');
+        const msPdfBtn      = document.getElementById('msPdfBtn');
+        const msBwPdfBtn    = document.getElementById('msBwPdfBtn');
         const msFormHeader  = document.getElementById('msFormHeader');
         const msTableHead   = document.getElementById('msTableHead');
         const msTableBody   = document.getElementById('msTableBody');
@@ -5661,7 +5668,7 @@
         }
 
         /* ── Print ── */
-        function printMsStatement() {
+        function printMsStatement(bw = false) {
             if (!msLastData) return;
             const { data, columns, sortedGroupSizes, monthName, selYear } = msLastData;
             const barName = activeBar.barName || '';
@@ -5670,7 +5677,9 @@
 
             // ── Header row 1: category groups ──
             let ph1 = '<th rowspan="3" class="th-part">PARTICULARS</th>';
-            const catColors = { Spirits:'#1e3a8a', Wines:'#166534', BeerStrong:'#9a3412', BeerMild:'#854d0e' };
+            const catColors = bw
+                ? { Spirits:'#1a1a1a', Wines:'#1a1a1a', BeerStrong:'#2a2a2a', BeerMild:'#2a2a2a' }
+                : { Spirits:'#1e3a8a', Wines:'#166534', BeerStrong:'#9a3412', BeerMild:'#854d0e' };
             for (const g of CATEGORY_GROUPS) {
                 const sizes = sortedGroupSizes[g.key] || [];
                 if (sizes.length === 0) continue;
@@ -5680,7 +5689,9 @@
 
             // ── Header rows 2 & 3: sizes + ml ──
             let ph2 = '', ph3 = '';
-            const sizeColors = { Spirits:'#1e40af', Wines:'#15803d', BeerStrong:'#c2410c', BeerMild:'#a16207' };
+            const sizeColors = bw
+                ? { Spirits:'#333', Wines:'#333', BeerStrong:'#444', BeerMild:'#444' }
+                : { Spirits:'#1e40af', Wines:'#15803d', BeerStrong:'#c2410c', BeerMild:'#a16207' };
             for (const g of CATEGORY_GROUPS) {
                 for (const ml of (sortedGroupSizes[g.key] || [])) {
                     ph2 += `<th class="th-size" style="background:${sizeColors[g.key]||'#1e40af'}">${ml}</th>`;
@@ -5690,8 +5701,11 @@
 
             // ── Body rows ──
             let tbody = '';
-            const accentRows = { opening:'#eff6ff', received:'#f0fdf4', total:'#dbeafe', cumulReceipt:'#e0f2fe',
-                                  sold:'#fff7ed', cumulSale:'#fef3c7', breakage:'#fee2e2', closing:'#ede9fe' };
+            const accentRows = bw
+                ? { opening:'#f5f5f5', received:'#f0f0f0', total:'#e5e5e5', cumulReceipt:'#ebebeb',
+                    sold:'#f9f9f9', cumulSale:'#f0f0f0', breakage:'#f5f5f5', closing:'#e8e8e8' }
+                : { opening:'#eff6ff', received:'#f0fdf4', total:'#dbeafe', cumulReceipt:'#e0f2fe',
+                    sold:'#fff7ed', cumulSale:'#fef3c7', breakage:'#fee2e2', closing:'#ede9fe' };
             const boldRows = new Set(['total','closing']);
             for (const rd of ROW_DEFS) {
                 const bg    = accentRows[rd.key] || '#ffffff';
@@ -5733,15 +5747,16 @@
             }
             bulkTbody += `<tr class="blk-total"><td class="blk-label"><strong>TOTAL :</strong></td><td class="blk-num"><strong>${fmtB(gOT)}</strong></td><td class="blk-num"><strong>${fmtB(gRT)}</strong></td><td class="blk-num"><strong>${fmtB(gST)}</strong></td><td class="blk-num"><strong>${fmtB(gCT)}</strong></td></tr>`;
 
-            printWithIframe(`<!DOCTYPE html>
+            const __msPdfHtml = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>F.L.R.-4 — ${barName} — ${monthName} ${selYear}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body,*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
   body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:8.5pt;color:#111;background:#fff;
        padding:8mm 8mm 6mm}
   @page{size:A4 landscape;margin:8mm 6mm}
-  @media print{body{padding:0}-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{body{padding:0}}
 
   /* ── Top accent bar ── */
   .top-bar{height:5px;background:linear-gradient(90deg,#1e3a8a 0%,#1e40af 40%,#166534 40%,#166534 55%,#9a3412 55%,#9a3412 75%,#854d0e 75%,#854d0e 100%);margin-bottom:8px;border-radius:2px}
@@ -5805,6 +5820,7 @@
   .blk-label{text-align:left;font-weight:500;white-space:nowrap}
   .blk-num{text-align:center;font-variant-numeric:tabular-nums}
   .blk-total td{background:#eff6ff;font-weight:700;border-top:2px solid #1e3a8a}
+  ${bw ? 'html,body{-webkit-filter:grayscale(1)!important;filter:grayscale(1)!important}' : ''}
 </style>
 </head><body>
   <div class="top-bar"></div>
@@ -5855,14 +5871,17 @@
     <div class="sig-line">Signature of Licensee</div>
   </div>
 
-</body></html>`);
+</body></html>`;
+            if (_previewMode) { _previewMode = false; showPrintPreview(__msPdfHtml); }
+            else { downloadPdf(__msPdfHtml, `Monthly_Statement_FL4_${(barName||'').replace(/[^a-z0-9]/gi,'_')}_${monthName}_${selYear}${bw?'_BW':''}.pdf`); }
         }
 
         // ── Event wiring ──
         if (msGoBtn)     msGoBtn.addEventListener('click', generateMonthlyStatement);
         if (msExportBtn) msExportBtn.addEventListener('click', exportMsCsv);
-        if (msPrintBtn)  msPrintBtn.addEventListener('click', printMsStatement);
-        document.getElementById('msPreviewBtn')?.addEventListener('click', () => { _previewMode = true; printMsStatement(); });
+        if (msPdfBtn)    msPdfBtn.addEventListener('click', () => printMsStatement(false));
+        if (msBwPdfBtn)  msBwPdfBtn.addEventListener('click', () => printMsStatement(true));
+        document.getElementById('msPreviewBtn')?.addEventListener('click', () => { _previewMode = true; printMsStatement(false); });
 
         // Auto-generate when sub-view becomes visible
         const msPanel = document.getElementById('sub-monthly-statement');
@@ -6252,7 +6271,8 @@
         const mmlYearSelect  = document.getElementById('mmlMsYearSelect');
         const mmlGoBtn       = document.getElementById('mmlMsGoBtn');
         const mmlExportBtn   = document.getElementById('mmlMsExportBtn');
-        const mmlPrintBtn    = document.getElementById('mmlMsPrintBtn');
+        const mmlMsPdfBtn    = document.getElementById('mmlMsPdfBtn');
+        const mmlMsBwPdfBtn  = document.getElementById('mmlMsBwPdfBtn');
         const mmlFormHeader  = document.getElementById('mmlMsFormHeader');
         const mmlTableHead   = document.getElementById('mmlMsTableHead');
         const mmlTableBody   = document.getElementById('mmlMsTableBody');
@@ -6642,7 +6662,7 @@
         }
 
         /* Print MML statement */
-        function printMmlStatement() {
+        function printMmlStatement(bw = false) {
             if (!mmlLastData) return;
             const { data, sortedSizes, monthName, selYear } = mmlLastData;
             const barName  = activeBar.barName || '';
@@ -6663,8 +6683,11 @@
 
             // ── Body rows ──
             let tbody = '';
-            const accentRows = { opening:'#f0f9ff', received:'#f0fdf4', total:'#dbeafe', cumulReceipt:'#e0f2fe',
-                                  sold:'#fff7ed', cumulSale:'#fef3c7', breakage:'#fee2e2', closing:'#ede9fe' };
+            const accentRows = bw
+                ? { opening:'#f5f5f5', received:'#f0f0f0', total:'#e5e5e5', cumulReceipt:'#ebebeb',
+                    sold:'#f9f9f9', cumulSale:'#f0f0f0', breakage:'#f5f5f5', closing:'#e8e8e8' }
+                : { opening:'#f0f9ff', received:'#f0fdf4', total:'#dbeafe', cumulReceipt:'#e0f2fe',
+                    sold:'#fff7ed', cumulSale:'#fef3c7', breakage:'#fee2e2', closing:'#ede9fe' };
             const boldRows = new Set(['total','closing']);
             for (const rd of MML_ROW_DEFS) {
                 const bg   = accentRows[rd.key] || '#ffffff';
@@ -6695,15 +6718,16 @@
                 mmlBulkC += (data['closing'][ck]  || 0) * ml / 1000;
             }
 
-            printWithIframe(`<!DOCTYPE html>
+            const __mmlPdfHtml = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>MML F.L.R.-4 — ${barName} — ${monthName} ${selYear}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body,*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
   body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:8.5pt;color:#111;background:#fff;
        padding:8mm 8mm 6mm}
   @page{size:A4 landscape;margin:8mm 6mm}
-  @media print{body{padding:0}-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{body{padding:0}}
 
   /* ── Top accent bar ── */
   .top-bar{height:5px;background:linear-gradient(90deg,#065f46 0%,#059669 50%,#047857 100%);margin-bottom:8px;border-radius:2px}
@@ -6762,6 +6786,7 @@
   .blk-label{text-align:left;font-weight:500;white-space:nowrap}
   .blk-num{text-align:center;font-variant-numeric:tabular-nums}
   .blk-total td{background:#d1fae5;font-weight:700;border-top:2px solid #065f46}
+  ${bw ? 'html,body{-webkit-filter:grayscale(1)!important;filter:grayscale(1)!important}' : ''}
 </style>
 </head><body>
   <div class="top-bar"></div>
@@ -6815,14 +6840,17 @@
     <div class="sig-line">Signature of Licensee</div>
   </div>
 
-</body></html>`);
+</body></html>`;
+            if (_previewMode) { _previewMode = false; showPrintPreview(__mmlPdfHtml); }
+            else { downloadPdf(__mmlPdfHtml, `Monthly_Statement_MML_${(barName||'').replace(/[^a-z0-9]/gi,'_')}_${monthName}_${selYear}${bw?'_BW':''}.pdf`); }
         }
 
         // Event wiring
         if (mmlGoBtn)     mmlGoBtn.addEventListener('click', generateMmlMonthlyStatement);
         if (mmlExportBtn) mmlExportBtn.addEventListener('click', exportMmlCsv);
-        if (mmlPrintBtn)  mmlPrintBtn.addEventListener('click', printMmlStatement);
-        document.getElementById('mmlMsPreviewBtn')?.addEventListener('click', () => { _previewMode = true; printMmlStatement(); });
+        if (mmlMsPdfBtn)    mmlMsPdfBtn.addEventListener('click', () => printMmlStatement(false));
+        if (mmlMsBwPdfBtn)  mmlMsBwPdfBtn.addEventListener('click', () => printMmlStatement(true));
+        document.getElementById('mmlMsPreviewBtn')?.addEventListener('click', () => { _previewMode = true; printMmlStatement(false); });
 
         // Auto-generate on panel activation
         const mmlPanel = document.getElementById('sub-mml-monthly-statement');
