@@ -17,6 +17,23 @@
         }
     })();
 
+    // ── IST Clock (second row, center) ──
+    (function() {
+        var clockEl = document.getElementById('tsbClock');
+        if (!clockEl) return;
+        function tickClock() {
+            clockEl.textContent = new Date().toLocaleTimeString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                hour12: true,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        tickClock();
+        setInterval(tickClock, 1000);
+    })();
+
     // ── Shared print helper ── use hidden iframe so Chromium shows its own print preview ──
     let _previewMode = false;
     function printWithIframe(html) {
@@ -12711,6 +12728,311 @@
         });
 
         } // end else-block
+    }
+    // ═══════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════
+    //  ITEM WISE SALE REPORT
+    // ═══════════════════════════════════════════════════════
+    {
+        const iwsDateFrom  = document.getElementById('iwsDateFrom');
+        const iwsDateTo    = document.getElementById('iwsDateTo');
+        const iwsGoBtn     = document.getElementById('iwsGoBtn');
+        const iwsExportBtn  = document.getElementById('iwsExportBtn');
+        const iwsPrintBtn   = document.getElementById('iwsPrintBtn');
+        const iwsCatFilter  = document.getElementById('iwsCatFilter');
+        const iwsTableHead = document.getElementById('iwsTableHead');
+        const iwsTableBody = document.getElementById('iwsTableBody');
+        const iwsTableFoot = document.getElementById('iwsTableFoot');
+        const iwsEmpty     = document.getElementById('iwsEmpty');
+        const iwsBarInfo   = document.getElementById('iwsBarInfo');
+        const iwsFromLabel    = document.getElementById('iwsFromLabel');
+        const iwsToLabel      = document.getElementById('iwsToLabel');
+        const iwsTotalItems   = document.getElementById('iwsTotalItems');
+        const iwsTotalBottles = document.getElementById('iwsTotalBottles');
+        const iwsTotalML      = document.getElementById('iwsTotalML');
+        const iwsTotalAmount  = document.getElementById('iwsTotalAmount');
+
+        // Default dates: full financial year
+        const iwsFyStartYear = (() => { const n = new Date(); return n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1; })();
+        const iwsFyStart = iwsFyStartYear + '-04-01';
+        const iwsFyEnd   = (iwsFyStartYear + 1) + '-03-31';
+        if (iwsDateFrom) iwsDateFrom.value = iwsFyStart;
+        if (iwsDateTo)   iwsDateTo.value   = iwsFyEnd;
+
+        function iwsGetML(sizeStr) {
+            const m = (sizeStr || '').match(/^(\d+)\s*ML/i);
+            if (m) return parseInt(m[1]);
+            const l = (sizeStr || '').match(/^(\d+(?:\.\d+)?)\s*Ltr/i);
+            if (l) return Math.round(parseFloat(l[1]) * 1000);
+            return 0;
+        }
+        function iwsFmtDate(iso) {
+            if (!iso) return '—';
+            const [y, m, d] = iso.split('-');
+            return d + '/' + m + '/' + y;
+        }
+        function iwsFmtNum(v) { return (v || 0).toLocaleString('en-IN'); }
+        function iwsFmtAmt(v) { return (v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+        let iwsLastRows = [];
+        let iwsLastFrom  = '';
+        let iwsLastTo    = '';
+
+        function getIwsFilteredRows() {
+            const cat = iwsCatFilter ? iwsCatFilter.value : '';
+            return cat ? iwsLastRows.filter(r => r.category === cat) : iwsLastRows;
+        }
+
+        async function generateIws() {
+            if (!activeBar.barName) return;
+            const fromDate = iwsDateFrom ? iwsDateFrom.value : iwsFyStart;
+            const toDate   = iwsDateTo   ? iwsDateTo.value   : iwsFyEnd;
+            if (!fromDate || !toDate || fromDate > toDate) return;
+
+            if (iwsFromLabel) iwsFromLabel.textContent = iwsFmtDate(fromDate);
+            if (iwsToLabel)   iwsToLabel.textContent   = iwsFmtDate(toDate);
+
+            const params = { barName: activeBar.barName, financialYear: activeBar.financialYear || '' };
+            const result = await window.electronAPI.getDailySales(params);
+            if (!result.success || !result.sales) {
+                iwsLastRows = [];
+                renderIwsTable([], fromDate, toDate);
+                return;
+            }
+
+            // Aggregate by (brandName + size)
+            const aggMap = new Map();
+            for (const bill of result.sales) {
+                const billDate = bill.billDate || '';
+                if (billDate < fromDate || billDate > toDate) continue;
+                for (const item of (bill.items || [])) {
+                    const key = (item.brandName || '') + '|||' + (item.size || '');
+                    if (!aggMap.has(key)) {
+                        aggMap.set(key, {
+                            brandName: item.brandName || '',
+                            size: item.size || '',
+                            category: item.category || '',
+                            bottles: 0,
+                            amount: 0,
+                            mlPerBottle: iwsGetML(item.size),
+                        });
+                    }
+                    const r = aggMap.get(key);
+                    r.bottles += item.qty || 0;
+                    r.amount  += item.amount || 0;
+                }
+            }
+
+            // Sort: category → brandName → size
+            const rows = [...aggMap.values()].sort((a, b) => {
+                const cc = (a.category || '').localeCompare(b.category || '');
+                if (cc !== 0) return cc;
+                const bc = (a.brandName || '').localeCompare(b.brandName || '');
+                if (bc !== 0) return bc;
+                return (a.size || '').localeCompare(b.size || '');
+            });
+            rows.forEach((r, i) => { r.srNo = i + 1; r.mlQty = r.bottles * r.mlPerBottle; });
+
+            iwsLastRows = rows;
+            iwsLastFrom  = fromDate;
+            iwsLastTo    = toDate;
+
+            // Populate category filter
+            if (iwsCatFilter) {
+                const prevSel = iwsCatFilter.value;
+                const cats = [...new Set(rows.map(r => r.category).filter(Boolean))].sort();
+                iwsCatFilter.innerHTML = '<option value="">All Categories</option>' +
+                    cats.map(c => `<option value="${c}"${c === prevSel ? ' selected' : ''}>${c}</option>`).join('');
+            }
+
+            renderIwsTable(getIwsFilteredRows(), fromDate, toDate);
+        }
+
+        function renderIwsTable(rows, fromDate, toDate) {
+            // Bar info header
+            if (iwsBarInfo) {
+                const licNo   = activeBar.licenseNo || activeBar.licNo || '—';
+                const address = [activeBar.address, activeBar.area, activeBar.city, activeBar.state, activeBar.pinCode].filter(Boolean).join(', ') || '—';
+                iwsBarInfo.innerHTML = `
+                    <div class="iws-bar-header">
+                        <div class="iws-bar-name">${activeBar.barName || '—'}</div>
+                        <div class="iws-bar-meta">
+                            <span><strong>Lic No:</strong> ${licNo}</span>
+                            <span class="iws-dot">·</span>
+                            <span><strong>Address:</strong> ${address}</span>
+                        </div>
+                        ${fromDate ? `<div class="iws-bar-period"><strong>Period:</strong> ${iwsFmtDate(fromDate)} to ${iwsFmtDate(toDate)}</div>` : ''}
+                    </div>`;
+            }
+
+            // Summary cards
+            const totalBottles = rows.reduce((a, r) => a + r.bottles, 0);
+            const totalML      = rows.reduce((a, r) => a + r.mlQty, 0);
+            const totalAmount  = rows.reduce((a, r) => a + r.amount, 0);
+            if (iwsTotalItems)   iwsTotalItems.textContent   = rows.length.toLocaleString('en-IN');
+            if (iwsTotalBottles) iwsTotalBottles.textContent = iwsFmtNum(totalBottles);
+            if (iwsTotalML)      iwsTotalML.textContent      = (totalML / 1000).toFixed(3) + ' Ltr';
+            if (iwsTotalAmount)  iwsTotalAmount.textContent  = '₹' + iwsFmtAmt(totalAmount);
+
+            if (rows.length === 0) {
+                if (iwsEmpty)     iwsEmpty.classList.remove('hidden');
+                if (iwsTableHead) iwsTableHead.innerHTML = '';
+                if (iwsTableBody) iwsTableBody.innerHTML = '';
+                if (iwsTableFoot) iwsTableFoot.innerHTML = '';
+                return;
+            }
+            if (iwsEmpty) iwsEmpty.classList.add('hidden');
+
+            // Header
+            if (iwsTableHead) {
+                iwsTableHead.innerHTML = `<tr>
+                    <th class="iws-th iws-th-sr">Sr.No</th>
+                    <th class="iws-th iws-th-item">Item Name</th>
+                    <th class="iws-th iws-th-size">Size</th>
+                    <th class="iws-th iws-th-btl">Bottles</th>
+                    <th class="iws-th iws-th-ml">ML Qty (ml)</th>
+                    <th class="iws-th iws-th-ltr">Bulk Ltr</th>
+                    <th class="iws-th iws-th-amt">Amount (₹)</th>
+                </tr>`;
+            }
+
+            // Body
+            let bodyHtml = '';
+            let prevCat = null;
+            for (const r of rows) {
+                if (r.category !== prevCat) {
+                    bodyHtml += `<tr class="iws-cat-row"><td colspan="7">${r.category || 'Uncategorized'}</td></tr>`;
+                    prevCat = r.category;
+                }
+                bodyHtml += `<tr>
+                    <td class="iws-td iws-td-sr">${r.srNo}</td>
+                    <td class="iws-td iws-td-item">${r.brandName}</td>
+                    <td class="iws-td iws-td-size">${r.size}</td>
+                    <td class="iws-td iws-td-btl">${iwsFmtNum(r.bottles)}</td>
+                    <td class="iws-td iws-td-ml">${iwsFmtNum(r.mlQty)}</td>
+                    <td class="iws-td iws-td-ltr">${(r.mlQty / 1000).toFixed(3)}</td>
+                    <td class="iws-td iws-td-amt">${iwsFmtAmt(r.amount)}</td>
+                </tr>`;
+            }
+            if (iwsTableBody) iwsTableBody.innerHTML = bodyHtml;
+
+            // Footer
+            if (iwsTableFoot) {
+                iwsTableFoot.innerHTML = `<tr class="iws-total-row">
+                    <td colspan="3"><strong>TOTAL</strong></td>
+                    <td><strong>${iwsFmtNum(totalBottles)}</strong></td>
+                    <td><strong>${iwsFmtNum(totalML)}</strong></td>
+                    <td><strong>${(totalML / 1000).toFixed(3)}</strong></td>
+                    <td><strong>${iwsFmtAmt(totalAmount)}</strong></td>
+                </tr>`;
+            }
+        }
+
+        /* ── Export CSV ── */
+        function exportIwsCSV() {
+            if (!iwsLastRows.length) return;
+            const filtered = getIwsFilteredRows();
+            const headers = ['Sr.No', 'Item Name', 'Size', 'Bottles', 'ML Qty (ml)', 'Bulk Ltr', 'Amount (INR)'];
+            const csvRows = [headers.join(',')];
+            for (const r of filtered) {
+                csvRows.push([r.srNo, `"${r.brandName}"`, `"${r.size}"`, r.bottles, r.mlQty, (r.mlQty / 1000).toFixed(3), r.amount.toFixed(2)].join(','));
+            }
+            const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `ItemWiseSale_${activeBar.barName || 'Bar'}_${iwsDateFrom?.value}_to_${iwsDateTo?.value}.csv`;
+            a.click(); URL.revokeObjectURL(a.href);
+        }
+
+        /* ── Print ── */
+        function printIwsReport() {
+            if (!iwsLastRows.length) return;
+            const filtered  = getIwsFilteredRows();
+            const barName   = activeBar.barName || '';
+            const licNo     = activeBar.licenseNo || activeBar.licNo || '—';
+            const address   = [activeBar.address, activeBar.area, activeBar.city, activeBar.state, activeBar.pinCode].filter(Boolean).join(', ') || '—';
+            const fromStr   = iwsDateFrom ? iwsDateFrom.value : '';
+            const toStr     = iwsDateTo   ? iwsDateTo.value   : '';
+            const catLabel  = (iwsCatFilter && iwsCatFilter.value) ? iwsCatFilter.value : 'All Categories';
+            const totalBottles = filtered.reduce((a, r) => a + r.bottles, 0);
+            const totalML      = filtered.reduce((a, r) => a + r.mlQty, 0);
+            const totalAmount  = filtered.reduce((a, r) => a + r.amount, 0);
+
+            let prevCat = null;
+            let tbody = '';
+            for (const r of filtered) {
+                if (r.category !== prevCat) {
+                    tbody += `<tr><td colspan="7" style="background:#e8f5e9;font-weight:700;color:#1b5e20;text-align:left;padding:4px 6px">${r.category || 'Uncategorized'}</td></tr>`;
+                    prevCat = r.category;
+                }
+                tbody += `<tr>
+                    <td>${r.srNo}</td>
+                    <td style="text-align:left">${r.brandName}</td>
+                    <td>${r.size}</td>
+                    <td>${r.bottles.toLocaleString('en-IN')}</td>
+                    <td>${r.mlQty.toLocaleString('en-IN')}</td>
+                    <td>${(r.mlQty / 1000).toFixed(3)}</td>
+                    <td style="text-align:right">${r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>`;
+            }
+            tbody += `<tr style="font-weight:700;background:#f0f4ff">
+                <td colspan="3" style="text-align:left">TOTAL</td>
+                <td>${totalBottles.toLocaleString('en-IN')}</td>
+                <td>${totalML.toLocaleString('en-IN')}</td>
+                <td>${(totalML / 1000).toFixed(3)}</td>
+                <td style="text-align:right">${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>`;
+
+            printWithIframe(`<!DOCTYPE html><html><head><title>Item Wise Sale — ${barName}</title>
+                <style>
+                    body{font-family:'Inter',Arial,sans-serif;padding:12px;font-size:8pt}
+                    .bar-header{border-bottom:2px solid #1b5e20;padding-bottom:6px;margin-bottom:6px}
+                    .bar-name{font-size:13pt;font-weight:800;color:#1b5e20}
+                    .bar-meta{font-size:7.5pt;color:#444;margin-top:2px}
+                    .report-title{font-size:11pt;font-weight:700;text-align:center;margin:4px 0;color:#333}
+                    .period{text-align:center;font-size:7pt;color:#666;margin-bottom:6px}
+                    table{border-collapse:collapse;width:100%}
+                    th,td{border:1px solid #ccc;padding:3px 5px;font-size:7pt;text-align:center}
+                    th{background:#e8f5e9;color:#1b5e20;font-weight:700}
+                    td:nth-child(2){text-align:left}
+                    @page{size:A4 portrait;margin:8mm}
+                </style>
+            </head><body>
+                <div class="bar-header">
+                    <div class="bar-name">${barName}</div>
+                    <div class="bar-meta">Lic No: <strong>${licNo}</strong> &nbsp;|&nbsp; ${address}</div>
+                </div>
+                <div class="report-title">Item Wise Sale Report</div>
+                <div class="period">Period: <strong>${iwsFmtDate(fromStr)}</strong> to <strong>${iwsFmtDate(toStr)}</strong> &nbsp;|&nbsp; Category: <strong>${catLabel}</strong> &nbsp;|&nbsp; Generated: ${new Date().toLocaleString('en-IN')}</div>
+                <table>
+                    <thead><tr><th>Sr.No</th><th>Item Name</th><th>Size</th><th>Bottles</th><th>ML Qty (ml)</th><th>Bulk Ltr</th><th>Amount (&#x20B9;)</th></tr></thead>
+                    <tbody>${tbody}</tbody>
+                </table>
+            </body></html>`);
+        }
+
+        /* ── Event wiring ── */
+        if (iwsGoBtn)     iwsGoBtn.addEventListener('click', generateIws);
+        if (iwsExportBtn) iwsExportBtn.addEventListener('click', exportIwsCSV);
+        if (iwsPrintBtn)  iwsPrintBtn.addEventListener('click', printIwsReport);
+        if (iwsCatFilter) iwsCatFilter.addEventListener('change', () => {
+            if (iwsLastRows.length) renderIwsTable(getIwsFilteredRows(), iwsLastFrom, iwsLastTo);
+        });
+        [iwsDateFrom, iwsDateTo].forEach(el => {
+            el?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); generateIws(); } });
+        });
+
+        // Auto-generate when the panel first becomes active
+        const iwsPanel = document.getElementById('sub-item-wise-sale');
+        if (iwsPanel) {
+            const iwsObs = new MutationObserver(() => {
+                if (iwsPanel.classList.contains('active') && !iwsLastRows.length && activeBar.barName) {
+                    generateIws();
+                }
+            });
+            iwsObs.observe(iwsPanel, { attributes: true, attributeFilter: ['class'] });
+        }
     }
     // ═══════════════════════════════════════════════════════
 
