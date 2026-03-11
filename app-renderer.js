@@ -91,12 +91,20 @@
     document.getElementById('ppCancelBtn')?.addEventListener('click', closePrintPreview);
     document.getElementById('ppPrintBtn')?.addEventListener('click', _ppDoPrint);
     document.getElementById('ppPrintBtnBottom')?.addEventListener('click', _ppDoPrint);
+    let _escHeld = false;
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
+            _escHeld = true;
             const modal = document.getElementById('printPreviewModal');
             if (modal && !modal.classList.contains('hidden')) closePrintPreview();
         }
+        // Esc (held) + F1 → go to home bar-selector page
+        if (e.key === 'F1' && _escHeld) {
+            e.preventDefault();
+            window.electronAPI.navigateHome();
+        }
     });
+    document.addEventListener('keyup', e => { if (e.key === 'Escape') _escHeld = false; });
 
     // ── Theme ──────────────────────────────────────────────
     const htmlEl = document.documentElement;
@@ -5906,13 +5914,11 @@
         const m11MonthGrid  = document.getElementById('m11MonthGrid');
         const m11GoBtn      = document.getElementById('m11GoBtn');
         const m11PrintBtn   = document.getElementById('m11PrintBtn');
-        const m11PurchaseWrap = document.getElementById('m11PurchaseWrap');
-        const m11SalesWrap    = document.getElementById('m11SalesWrap');
-        const m11PurchaseHead = document.getElementById('m11PurchaseHead');
-        const m11PurchaseBody = document.getElementById('m11PurchaseBody');
-        const m11SalesHead    = document.getElementById('m11SalesHead');
-        const m11SalesBody    = document.getElementById('m11SalesBody');
-        const m11Empty      = document.getElementById('m11Empty');
+        const m11PurchaseWrap   = document.getElementById('m11PurchaseWrap');
+        const m11SalesWrap      = document.getElementById('m11SalesWrap');
+        const m11PurchaseTables = document.getElementById('m11PurchaseTables');
+        const m11SalesTables    = document.getElementById('m11SalesTables');
+        const m11Empty          = document.getElementById('m11Empty');
 
         let m11Generated = false;
 
@@ -6014,21 +6020,9 @@
 
             if (m11MonthGrid) {
                 m11MonthGrid.innerHTML = M11_MONTHS.map((m) => {
-                    const checked = m.idx === 2 ? '' : 'checked'; // March off by default
-                    return `<label class="m11-month-chip"><input type="checkbox" id="m11Mon_${m.idx}" ${checked}>${m.label}</label>`;
+                    return `<label class="m11-month-chip"><input type="checkbox" id="m11Mon_${m.idx}" checked>${m.label}</label>`;
                 }).join('');
             }
-        }
-
-        function buildM11Header(headEl, sizeLabels) {
-            if (!headEl) return;
-            const labels = sizeLabels.length ? sizeLabels : ['N/A'];
-            headEl.innerHTML = `
-                <tr class="ms-header-cat">
-                    <th class="ms-th ms-th-frozen m11-th-category">Category</th>
-                    ${labels.map(l => `<th class="ms-th ms-th-size">${m11Esc(l)}</th>`).join('')}
-                </tr>
-            `;
         }
 
         async function generate11MonthsStatement() {
@@ -6038,10 +6032,8 @@
                 if (m11PurchaseWrap) m11PurchaseWrap.classList.add('hidden');
                 if (m11SalesWrap) m11SalesWrap.classList.add('hidden');
                 if (m11Empty) m11Empty.classList.remove('hidden');
-                if (m11PurchaseHead) m11PurchaseHead.innerHTML = '';
-                if (m11SalesHead) m11SalesHead.innerHTML = '';
-                if (m11PurchaseBody) m11PurchaseBody.innerHTML = '';
-                if (m11SalesBody) m11SalesBody.innerHTML = '';
+                if (m11PurchaseTables) m11PurchaseTables.innerHTML = '';
+                if (m11SalesTables) m11SalesTables.innerHTML = '';
                 return;
             }
 
@@ -6088,37 +6080,28 @@
                 return 'N/A';
             };
 
+            // Data: purchase[cat][size][monthIdx] = qty
             const purchase = {};
             const sales = {};
+            const catSizes = {};
             M11_CATEGORY_ORDER.forEach(cat => {
                 purchase[cat] = {};
                 sales[cat] = {};
+                catSizes[cat] = new Set();
             });
-            const sizeSet = new Set();
-
-            const ensureSizeBucket = (cat, sizeLabel) => {
-                sizeSet.add(sizeLabel);
-                if (!purchase[cat][sizeLabel]) {
-                    purchase[cat][sizeLabel] = 0;
-                }
-                if (!sales[cat][sizeLabel]) {
-                    sales[cat][sizeLabel] = 0;
-                }
-            };
-
-            const inSelectedMonths = (dateStr) => selectedMonths.some(mi => m11IsInFyMonth(dateStr, fyStartYear, mi));
 
             if (tpResult.success && tpResult.tps) {
                 for (const tp of tpResult.tps) {
                     const tpDate = tp.tpDate || '';
+                    const mi = selectedMonths.find(m => m11IsInFyMonth(tpDate, fyStartYear, m));
+                    if (mi === undefined) continue;
                     for (const item of (tp.items || [])) {
                         const cat = resolveCategory(item);
                         if (!M11_CATEGORY_ORDER.includes(cat)) continue;
-                        const sizeLabel = resolveSize(item);
-                        ensureSizeBucket(cat, sizeLabel);
-                        if (inSelectedMonths(tpDate)) {
-                            purchase[cat][sizeLabel] += Number(item.totalBtl || 0);
-                        }
+                        const sz = resolveSize(item);
+                        catSizes[cat].add(sz);
+                        if (!purchase[cat][sz]) purchase[cat][sz] = {};
+                        purchase[cat][sz][mi] = (purchase[cat][sz][mi] || 0) + Number(item.totalBtl || 0);
                     }
                 }
             }
@@ -6126,62 +6109,87 @@
             for (const s of (salesItems || [])) {
                 const cat = resolveCategory(s);
                 if (!M11_CATEGORY_ORDER.includes(cat)) continue;
-                const sizeLabel = resolveSize(s);
-                ensureSizeBucket(cat, sizeLabel);
-                if (inSelectedMonths(s.billDate)) {
-                    sales[cat][sizeLabel] += Number(s.totalBtl || 0);
-                }
+                const sz = resolveSize(s);
+                const mi = selectedMonths.find(m => m11IsInFyMonth(s.billDate, fyStartYear, m));
+                if (mi === undefined) continue;
+                catSizes[cat].add(sz);
+                if (!sales[cat][sz]) sales[cat][sz] = {};
+                sales[cat][sz][mi] = (sales[cat][sz][mi] || 0) + Number(s.totalBtl || 0);
             }
 
-            const sizeLabels = [...sizeSet].sort((a, b) => {
-                const delta = m11SizeSortValue(b) - m11SizeSortValue(a);
-                if (delta !== 0) return delta;
-                return String(a).localeCompare(String(b), 'en', { sensitivity: 'base' });
+            // Sort sizes per category descending by ml
+            const sortedCatSizes = {};
+            M11_CATEGORY_ORDER.forEach(cat => {
+                sortedCatSizes[cat] = [...catSizes[cat]].sort((a, b) => {
+                    const delta = m11SizeSortValue(b) - m11SizeSortValue(a);
+                    return delta !== 0 ? delta : String(a).localeCompare(String(b), 'en', { sensitivity: 'base' });
+                });
             });
 
-            buildM11Header(m11PurchaseHead, sizeLabels);
-            buildM11Header(m11SalesHead, sizeLabels);
-            if (m11PurchaseBody) m11PurchaseBody.innerHTML = '';
-            if (m11SalesBody) m11SalesBody.innerHTML = '';
+            const monthLabels = selectedMonths.map(mi => M11_MONTHS.find(m => m.idx === mi)?.label || '');
 
-            const grandPurchase = Object.fromEntries(sizeLabels.map(s => [s, 0]));
-            const grandSales = Object.fromEntries(sizeLabels.map(s => [s, 0]));
+            function buildM11Section(dataObj, containerEl) {
+                if (!containerEl) return;
 
-            M11_CATEGORY_ORDER.forEach((cat) => {
-                const purchaseTr = document.createElement('tr');
-                let purchaseHtml = `<td class="ms-td ms-td-frozen m11-td-category">${m11CategoryDisplay(cat)}</td>`;
-                sizeLabels.forEach(sizeLabel => {
-                    const v = purchase[cat][sizeLabel] || 0;
-                    grandPurchase[sizeLabel] += v;
-                    purchaseHtml += `<td class="ms-td">${m11Fmt(v)}</td>`;
+                // Build active (cat -> sizes[]) map, filtering sizes with zero total
+                const catSizeMap = [];
+                const colTotals = {}; // colTotals[cat][sz]
+                M11_CATEGORY_ORDER.forEach(cat => {
+                    const allSizes = sortedCatSizes[cat] || [];
+                    if (allSizes.length === 0) return;
+                    colTotals[cat] = {};
+                    allSizes.forEach(sz => {
+                        let t = 0;
+                        selectedMonths.forEach(mi => { t += (dataObj[cat][sz] && dataObj[cat][sz][mi]) || 0; });
+                        colTotals[cat][sz] = t;
+                    });
+                    const activeSizes = allSizes.filter(sz => colTotals[cat][sz] > 0);
+                    if (activeSizes.length > 0) catSizeMap.push({ cat, sizes: activeSizes });
                 });
-                purchaseTr.innerHTML = purchaseHtml;
-                m11PurchaseBody?.appendChild(purchaseTr);
 
-                const salesTr = document.createElement('tr');
-                let salesHtml = `<td class="ms-td ms-td-frozen m11-td-category">${m11CategoryDisplay(cat)}</td>`;
-                sizeLabels.forEach(sizeLabel => {
-                    const v = sales[cat][sizeLabel] || 0;
-                    grandSales[sizeLabel] += v;
-                    salesHtml += `<td class="ms-td">${m11Fmt(v)}</td>`;
+                if (catSizeMap.length === 0) { containerEl.innerHTML = ''; return; }
+
+                // Two-row grouped header
+                // Row 1: MONTH (rowspan=2) | Cat1 (colspan=N) | Cat2 (colspan=M) | ... | TOTAL (rowspan=2)
+                const hdr1 = catSizeMap.map(({ cat, sizes }) =>
+                    `<th class="ms-th m11-th-cat-group" colspan="${sizes.length}">${m11CategoryDisplay(cat)}</th>`
+                ).join('');
+                // Row 2: sz1 | sz2 | ... for each category in order
+                const hdr2 = catSizeMap.map(({ cat, sizes }) =>
+                    sizes.map(sz => `<th class="ms-th ms-th-size m11-th-sz">${m11Esc(sz)}</th>`).join('')
+                ).join('');
+
+                // Data rows: one per selected month
+                let grandTotal = 0;
+                let rowsHtml = '';
+                selectedMonths.forEach((mi, idx) => {
+                    const label = monthLabels[idx] || '';
+                    let rowTotal = 0;
+                    const cells = catSizeMap.map(({ cat, sizes }) =>
+                        sizes.map(sz => {
+                            const v = (dataObj[cat][sz] && dataObj[cat][sz][mi]) || 0;
+                            rowTotal += v;
+                            return `<td class="ms-td">${m11Fmt(v)}</td>`;
+                        }).join('')
+                    ).join('');
+                    grandTotal += rowTotal;
+                    rowsHtml += `<tr><td class="ms-td ms-td-frozen m11-td-month">${m11Esc(label)}</td>${cells}<td class="ms-td m11-td-rowtotal">${m11Fmt(rowTotal)}</td></tr>`;
                 });
-                salesTr.innerHTML = salesHtml;
-                m11SalesBody?.appendChild(salesTr);
-            });
 
-            const totalPurchaseTr = document.createElement('tr');
-            totalPurchaseTr.className = 'ms-row-total';
-            let totalPurchaseHtml = '<td class="ms-td ms-td-frozen m11-td-category"><strong>Total</strong></td>';
-            sizeLabels.forEach(sizeLabel => { totalPurchaseHtml += `<td class="ms-td"><strong>${m11Fmt(grandPurchase[sizeLabel])}</strong></td>`; });
-            totalPurchaseTr.innerHTML = totalPurchaseHtml;
-            m11PurchaseBody?.appendChild(totalPurchaseTr);
+                // TOTAL row
+                const totCells = catSizeMap.map(({ cat, sizes }) =>
+                    sizes.map(sz => `<td class="ms-td ms-td-grand"><strong>${m11Fmt(colTotals[cat][sz])}</strong></td>`).join('')
+                ).join('');
+                rowsHtml += `<tr class="ms-row-total"><td class="ms-td ms-td-frozen"><strong>TOTAL</strong></td>${totCells}<td class="ms-td ms-td-grand"><strong>${m11Fmt(grandTotal)}</strong></td></tr>`;
 
-            const totalSalesTr = document.createElement('tr');
-            totalSalesTr.className = 'ms-row-total';
-            let totalSalesHtml = '<td class="ms-td ms-td-frozen m11-td-category"><strong>Total</strong></td>';
-            sizeLabels.forEach(sizeLabel => { totalSalesHtml += `<td class="ms-td"><strong>${m11Fmt(grandSales[sizeLabel])}</strong></td>`; });
-            totalSalesTr.innerHTML = totalSalesHtml;
-            m11SalesBody?.appendChild(totalSalesTr);
+                containerEl.innerHTML = `<div style="overflow-x:auto"><table class="ms-table m11-table"><thead>
+                    <tr><th class="ms-th ms-th-frozen m11-th-category" rowspan="2">MONTH</th>${hdr1}<th class="ms-th m11-th-total" rowspan="2">TOTAL</th></tr>
+                    <tr>${hdr2}</tr>
+                </thead><tbody>${rowsHtml}</tbody></table></div>`;
+            }
+
+            buildM11Section(purchase, m11PurchaseTables);
+            buildM11Section(sales, m11SalesTables);
 
             if (m11Empty) m11Empty.classList.add('hidden');
             if (m11PurchaseWrap) m11PurchaseWrap.classList.remove('hidden');
@@ -6192,10 +6200,10 @@
         async function print11MonthsStatement() {
             if (!activeBar.barName) return;
 
-            if (!m11PurchaseBody?.children.length && !m11SalesBody?.children.length) {
+            if (!m11PurchaseTables?.innerHTML && !m11SalesTables?.innerHTML) {
                 await generate11MonthsStatement();
             }
-            if (!m11PurchaseBody?.children.length && !m11SalesBody?.children.length) return;
+            if (!m11PurchaseTables?.innerHTML && !m11SalesTables?.innerHTML) return;
 
             const fyLabel = m11FySelect?.selectedOptions?.[0]?.textContent || activeBar.financialYear || 'FY';
             const selectedMonthLabels = m11SelectedMonths()
@@ -6203,29 +6211,36 @@
                 .filter(Boolean)
                 .join(', ');
 
-            const barName = activeBar.barName || '—';
-            const licNo = activeBar.licenseNo || activeBar.licNo || '—';
+            const barName    = activeBar.barName || '—';
+            const licNo      = activeBar.licenseNo || activeBar.licNo || '—';
             const barAddress = [activeBar.address, activeBar.area, activeBar.city].filter(Boolean).join(', ') || '—';
             const generatedOn = new Date().toLocaleString('en-IN');
 
-            const purchaseHead = m11PurchaseHead ? m11PurchaseHead.innerHTML : '';
-            const purchaseBody = m11PurchaseBody ? m11PurchaseBody.innerHTML : '';
-            const salesHead = m11SalesHead ? m11SalesHead.innerHTML : '';
-            const salesBody = m11SalesBody ? m11SalesBody.innerHTML : '';
+            const purchaseHTML = m11PurchaseTables ? m11PurchaseTables.innerHTML : '';
+            const salesHTML    = m11SalesTables    ? m11SalesTables.innerHTML    : '';
 
-            printWithIframe(`<!DOCTYPE html><html><head><title>11 Months Statement — ${m11Esc(barName)}</title>
+            printWithIframe(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>11 Months Statement — ${m11Esc(barName)}</title>
                 <style>
-                    body{font-family:'Segoe UI',Arial,sans-serif;padding:10px;color:#111;font-size:10pt}
-                    .head{border:1px solid #94a3b8;border-radius:6px;padding:8px 10px;background:#f8fafc;margin-bottom:10px}
-                    .head h2{margin:0 0 6px;font-size:14pt}
-                    .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:9pt}
-                    .meta .lbl{font-weight:700}
-                    h3{margin:10px 0 6px;font-size:11pt}
-                    table{border-collapse:collapse;width:100%;margin-bottom:12px}
-                    th,td{border:1px solid #8b8b8b;padding:3px 5px;font-size:8.5pt;text-align:center;white-space:nowrap}
-                    th:first-child, td:first-child{text-align:left}
-                    th{background:#eef2ff;font-weight:700}
-                    tr.ms-row-total td{font-weight:700;background:#f8fafc}
+                    html,body,*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+                    body{font-family:'Segoe UI',Arial,sans-serif;padding:10px;color:#111;font-size:9pt}
+                    .head{border:1.5px solid #1e3a8a;border-radius:6px;padding:8px 12px;background:#f8fafc;margin-bottom:10px}
+                    .head h2{margin:0 0 5px;font-size:13pt;color:#1e3a8a;font-weight:800}
+                    .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:8pt}
+                    .meta .lbl{font-weight:700;color:#475569}
+                    h3{margin:10px 0 6px;font-size:10pt;color:#1e3a8a;font-weight:800;border-bottom:2px solid #1e3a8a;padding-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
+                    .m11-cat-block{margin-bottom:10px;page-break-inside:avoid}
+                    .m11-cat-title{font-size:9pt;font-weight:800;color:#fff;background:#1e40af;padding:3px 10px;border-radius:3px 3px 0 0;display:inline-block;letter-spacing:.04em;text-transform:uppercase;margin-bottom:-1px}
+                    table,.ms-table{border-collapse:collapse;width:100%;font-size:8pt}
+                    th,.ms-th{background:#1e3a8a;color:#fff;font-weight:700;padding:4px 6px;border:1px solid #1e40af;text-align:center;white-space:nowrap}
+                    .ms-th:first-child,.ms-th-frozen,.m11-th-category{text-align:left;min-width:80px}
+                    .m11-th-cat-group{background:#1e40af!important;font-size:8.5pt;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-left:2px solid #93c5fd;border-right:2px solid #93c5fd}
+                    .m11-th-sz{background:#1e3a8a!important;font-size:7.5pt;border-left:1px solid #3b82f6}
+                    .m11-th-total{background:#312e81!important}
+                    td,.ms-td{border:1px solid #cbd5e1;padding:3px 5px;text-align:center;white-space:nowrap}
+                    .ms-td:first-child,.ms-td-frozen,.m11-td-size,.m11-td-month{text-align:left;padding-left:8px}
+                    .m11-td-rowtotal{font-weight:600;background:#eff6ff;color:#1e40af}
+                    .ms-td-grand{background:#dbeafe;color:#1e3a8a;font-weight:700}
+                    .ms-row-total .ms-td{background:#0f172a!important;color:#fff!important;font-weight:700}
                     @page{size:legal landscape;margin:8mm}
                 </style>
             </head><body>
@@ -6236,10 +6251,10 @@
                 </div>
 
                 <h3>Purchase</h3>
-                <table><thead>${purchaseHead}</thead><tbody>${purchaseBody}</tbody></table>
+                ${purchaseHTML}
 
                 <h3>Sales</h3>
-                <table><thead>${salesHead}</thead><tbody>${salesBody}</tbody></table>
+                ${salesHTML}
 
             </body></html>`);
         }
@@ -6259,6 +6274,270 @@
                 });
             });
             m11Observer.observe(m11Panel, { attributes: true, attributeFilter: ['class'] });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  MML 11 MONTHS STATEMENT — MML category only, pivot
+    // ═══════════════════════════════════════════════════════
+    {
+        const MML_ONLY_CAT = 'MML';
+
+        const mml11FySelect      = document.getElementById('mml11FySelect');
+        const mml11MonthGrid     = document.getElementById('mml11MonthGrid');
+        const mml11GoBtn         = document.getElementById('mml11GoBtn');
+        const mml11PrintBtn      = document.getElementById('mml11PrintBtn');
+        const mml11PurchaseTables = document.getElementById('mml11PurchaseTables');
+        const mml11SalesTables   = document.getElementById('mml11SalesTables');
+        const mml11PurchaseWrap  = document.getElementById('mml11PurchaseWrap');
+        const mml11SalesWrap     = document.getElementById('mml11SalesWrap');
+        const mml11Empty         = document.getElementById('mml11Empty');
+        let mml11Generated = false;
+
+        // M11_MONTHS duplicated here because the outer 11-month block is a sibling { } scope,
+        // not a parent scope — const declarations don't cross sibling block boundaries.
+        const M11_MONTHS = [
+            { idx: 3, label: 'Apr' }, { idx: 4, label: 'May' }, { idx: 5, label: 'Jun' },
+            { idx: 6, label: 'Jul' }, { idx: 7, label: 'Aug' }, { idx: 8, label: 'Sep' },
+            { idx: 9, label: 'Oct' }, { idx: 10, label: 'Nov' }, { idx: 11, label: 'Dec' },
+            { idx: 0, label: 'Jan' }, { idx: 1, label: 'Feb' }, { idx: 2, label: 'Mar' },
+        ];
+
+        function mml11SelectedMonths() {
+            if (!mml11MonthGrid) return M11_MONTHS.map(m => m.idx);
+            return M11_MONTHS
+                .filter(m => mml11MonthGrid.querySelector(`#mml11Mon_${m.idx}`)?.checked)
+                .map(m => m.idx);
+        }
+
+        function mml11DefaultFyStart() {
+            const now = new Date();
+            if (activeBar.financialYear) {
+                const match = String(activeBar.financialYear).match(/(\d{4})/);
+                if (match) return Number(match[1]);
+            }
+            return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+        }
+
+        function initMml11Controls() {
+            if (mml11FySelect) {
+                const base = mml11DefaultFyStart();
+                mml11FySelect.innerHTML = '';
+                for (let y = base + 1; y >= base - 2; y--) {
+                    const fyStart = y - 1;
+                    const opt = document.createElement('option');
+                    opt.value = String(fyStart);
+                    opt.textContent = `FY ${fyStart}-${String(y).slice(2)}`;
+                    mml11FySelect.appendChild(opt);
+                }
+                mml11FySelect.value = String(base);
+            }
+            if (mml11MonthGrid) {
+                mml11MonthGrid.innerHTML = M11_MONTHS.map(m =>
+                    `<label class="m11-month-chip"><input type="checkbox" id="mml11Mon_${m.idx}" checked>${m.label}</label>`
+                ).join('');
+            }
+        }
+
+        function buildMml11Table(dataObj, containerEl, monthLabels, selectedMonths, sortedSizes) {
+            if (!containerEl) return;
+            // Filter sizes with at least 1 unit
+            const colTotals = {};
+            sortedSizes.forEach(sz => {
+                let t = 0;
+                selectedMonths.forEach(mi => { t += (dataObj[sz] && dataObj[sz][mi]) || 0; });
+                colTotals[sz] = t;
+            });
+            const sizes = sortedSizes.filter(sz => colTotals[sz] > 0);
+            if (sizes.length === 0) { containerEl.innerHTML = ''; return; }
+
+            const hdrCells = sizes.map(sz => `<th class="ms-th ms-th-size m11-th-sz">${m11Esc(sz)}</th>`).join('');
+            let grandTotal = 0;
+            let rowsHtml = '';
+            selectedMonths.forEach((mi, idx) => {
+                const label = monthLabels[idx] || '';
+                let rowTotal = 0;
+                const cells = sizes.map(sz => {
+                    const v = (dataObj[sz] && dataObj[sz][mi]) || 0;
+                    rowTotal += v;
+                    return `<td class="ms-td">${m11Fmt(v)}</td>`;
+                }).join('');
+                grandTotal += rowTotal;
+                rowsHtml += `<tr><td class="ms-td ms-td-frozen m11-td-month">${m11Esc(label)}</td>${cells}<td class="ms-td m11-td-rowtotal">${m11Fmt(rowTotal)}</td></tr>`;
+            });
+            const totCells = sizes.map(sz => `<td class="ms-td ms-td-grand"><strong>${m11Fmt(colTotals[sz])}</strong></td>`).join('');
+            rowsHtml += `<tr class="ms-row-total"><td class="ms-td ms-td-frozen"><strong>TOTAL</strong></td>${totCells}<td class="ms-td ms-td-grand"><strong>${m11Fmt(grandTotal)}</strong></td></tr>`;
+            containerEl.innerHTML = `<div style="overflow-x:auto"><table class="ms-table m11-table"><thead><tr><th class="ms-th ms-th-frozen m11-th-category">MONTH</th>${hdrCells}<th class="ms-th m11-th-total">TOTAL</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+        }
+
+        async function generateMml11Statement() {
+            if (!activeBar.barName) return;
+            const selectedMonths = mml11SelectedMonths();
+            if (!selectedMonths.length) {
+                if (mml11PurchaseWrap) mml11PurchaseWrap.classList.add('hidden');
+                if (mml11SalesWrap) mml11SalesWrap.classList.add('hidden');
+                if (mml11Empty) mml11Empty.classList.remove('hidden');
+                if (mml11PurchaseTables) mml11PurchaseTables.innerHTML = '';
+                if (mml11SalesTables) mml11SalesTables.innerHTML = '';
+                return;
+            }
+
+            const fyStartYear = Number(mml11FySelect?.value || mml11DefaultFyStart());
+            const params = { barName: activeBar.barName, financialYear: activeBar.financialYear || '' };
+
+            const [tpResult, salesItems, productsResult] = await Promise.all([
+                window.electronAPI.getTps(params),
+                getSalesData(params),
+                window.electronAPI.getProducts(params),
+            ]);
+
+            // Build code→size lookup for MML products only
+            const byCode = new Map();
+            const byBrandSize = new Map();
+            if (productsResult.success && productsResult.products) {
+                for (const p of productsResult.products) {
+                    const cat = m11NormalizeCategory(p.category || '');
+                    if (cat !== MML_ONLY_CAT) continue;
+                    const sizeNorm = m11NormSize(p.size || '');
+                    const codeKey = String(p.code || '').trim().toUpperCase();
+                    if (codeKey) byCode.set(codeKey, { cat, size: sizeNorm });
+                    byBrandSize.set(`${m11NormBrand(p.brandName)}|${m11NormSize(p.size)}`, { cat, size: sizeNorm });
+                }
+            }
+
+            const resolveIsMml = ({ code, category, brandName, brand, size }) => {
+                const direct = m11NormalizeCategory(category || '');
+                if (direct === MML_ONLY_CAT) return true;
+                const codeKey = String(code || '').trim().toUpperCase();
+                if (codeKey && byCode.has(codeKey)) return byCode.get(codeKey).cat === MML_ONLY_CAT;
+                const bsKey = `${m11NormBrand(brandName || brand)}|${m11NormSize(size)}`;
+                if (byBrandSize.has(bsKey)) return byBrandSize.get(bsKey).cat === MML_ONLY_CAT;
+                return false;
+            };
+
+            const resolveSize = ({ code, size, brandName, brand }) => {
+                const directSize = m11NormSize(size || '');
+                if (directSize) return directSize;
+                const codeKey = String(code || '').trim().toUpperCase();
+                if (codeKey && byCode.has(codeKey)) return byCode.get(codeKey).size || 'N/A';
+                return 'N/A';
+            };
+
+            // purchase[sz][monthIdx] = qty, sales[sz][monthIdx] = qty
+            const purchase = {};
+            const sales = {};
+            const sizesSet = new Set();
+
+            if (tpResult.success && tpResult.tps) {
+                for (const tp of tpResult.tps) {
+                    const tpDate = tp.tpDate || '';
+                    const mi = selectedMonths.find(m => m11IsInFyMonth(tpDate, fyStartYear, m));
+                    if (mi === undefined) continue;
+                    for (const item of (tp.items || [])) {
+                        if (!resolveIsMml(item)) continue;
+                        const sz = resolveSize(item);
+                        sizesSet.add(sz);
+                        if (!purchase[sz]) purchase[sz] = {};
+                        purchase[sz][mi] = (purchase[sz][mi] || 0) + Number(item.totalBtl || 0);
+                    }
+                }
+            }
+
+            for (const s of (salesItems || [])) {
+                if (!resolveIsMml(s)) continue;
+                const sz = resolveSize(s);
+                const mi = selectedMonths.find(m => m11IsInFyMonth(s.billDate, fyStartYear, m));
+                if (mi === undefined) continue;
+                sizesSet.add(sz);
+                if (!sales[sz]) sales[sz] = {};
+                sales[sz][mi] = (sales[sz][mi] || 0) + Number(s.totalBtl || 0);
+            }
+
+            const sortedSizes = [...sizesSet].sort((a, b) => {
+                const delta = m11SizeSortValue(b) - m11SizeSortValue(a);
+                return delta !== 0 ? delta : String(a).localeCompare(String(b), 'en', { sensitivity: 'base' });
+            });
+
+            const monthLabels = selectedMonths.map(mi => M11_MONTHS.find(m => m.idx === mi)?.label || '');
+
+            buildMml11Table(purchase, mml11PurchaseTables, monthLabels, selectedMonths, sortedSizes);
+            buildMml11Table(sales, mml11SalesTables, monthLabels, selectedMonths, sortedSizes);
+
+            const hasData = !!(mml11PurchaseTables?.innerHTML || mml11SalesTables?.innerHTML);
+            if (mml11Empty) mml11Empty.classList.toggle('hidden', hasData);
+            if (mml11PurchaseWrap) mml11PurchaseWrap.classList.toggle('hidden', !hasData);
+            if (mml11SalesWrap) mml11SalesWrap.classList.toggle('hidden', !hasData);
+            mml11Generated = true;
+        }
+
+        async function printMml11Statement() {
+            if (!activeBar.barName) return;
+            if (!mml11PurchaseTables?.innerHTML && !mml11SalesTables?.innerHTML) {
+                await generateMml11Statement();
+            }
+            if (!mml11PurchaseTables?.innerHTML && !mml11SalesTables?.innerHTML) return;
+
+            const fyLabel = mml11FySelect?.selectedOptions?.[0]?.textContent || activeBar.financialYear || 'FY';
+            const selectedMonthLabels = mml11SelectedMonths()
+                .map(mi => M11_MONTHS.find(m => m.idx === mi)?.label)
+                .filter(Boolean).join(', ');
+
+            const barName    = activeBar.barName || '—';
+            const licNo      = activeBar.licenseNo || activeBar.licNo || '—';
+            const barAddress = [activeBar.address, activeBar.area, activeBar.city].filter(Boolean).join(', ') || '—';
+            const generatedOn = new Date().toLocaleString('en-IN');
+
+            const purchaseHTML = mml11PurchaseTables ? mml11PurchaseTables.innerHTML : '';
+            const salesHTML    = mml11SalesTables    ? mml11SalesTables.innerHTML    : '';
+
+            printWithIframe(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>MML 11 Months Statement — ${m11Esc(barName)}</title>
+                <style>
+                    html,body,*{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+                    body{font-family:'Segoe UI',Arial,sans-serif;padding:10px;color:#111;font-size:9pt}
+                    .head{border:1.5px solid #1e3a8a;border-radius:6px;padding:8px 12px;background:#f8fafc;margin-bottom:10px}
+                    .head h2{margin:0 0 5px;font-size:13pt;color:#1e3a8a;font-weight:800}
+                    .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:8pt}
+                    .meta .lbl{font-weight:700;color:#475569}
+                    h3{margin:10px 0 6px;font-size:10pt;color:#1e3a8a;font-weight:800;border-bottom:2px solid #1e3a8a;padding-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
+                    table{border-collapse:collapse;width:100%;font-size:8pt;table-layout:auto}
+                    th{background:#1e3a8a;color:#fff;font-weight:700;padding:4px 6px;border:1px solid #1e40af;text-align:center;white-space:nowrap}
+                    th:first-child{text-align:left;min-width:72px}
+                    .m11-th-total{background:#312e81!important}
+                    td{border:1px solid #cbd5e1;padding:3px 5px;text-align:center;white-space:nowrap}
+                    td:first-child{text-align:left;padding-left:8px}
+                    .m11-td-rowtotal{font-weight:600;background:#eff6ff;color:#1e40af}
+                    .ms-td-grand{background:#dbeafe;color:#1e3a8a;font-weight:700}
+                    .ms-row-total td{background:#0f172a!important;color:#fff!important;font-weight:700}
+                    @page{size:legal landscape;margin:8mm}
+                </style>
+            </head><body>
+                <div class="head">
+                    <h2>MML 11 Months Statement (Bottle Qty)</h2>
+                    <div class="meta"><div><span class="lbl">Bar Name:</span> ${m11Esc(barName)}</div><div><span class="lbl">Lic No:</span> ${m11Esc(licNo)}</div><div><span class="lbl">${m11Esc(fyLabel)}</span></div></div>
+                    <div class="meta"><div><span class="lbl">Address:</span> ${m11Esc(barAddress)}</div><div><span class="lbl">Months:</span> ${m11Esc(selectedMonthLabels || '—')}</div><div><span class="lbl">Generated:</span> ${m11Esc(generatedOn)}</div></div>
+                </div>
+                <h3>MML Purchase</h3>
+                ${purchaseHTML}
+                <h3>MML Sales</h3>
+                ${salesHTML}
+            </body></html>`);
+        }
+
+        initMml11Controls();
+        if (mml11GoBtn) mml11GoBtn.addEventListener('click', generateMml11Statement);
+        if (mml11PrintBtn) mml11PrintBtn.addEventListener('click', printMml11Statement);
+        document.getElementById('mml11PreviewBtn')?.addEventListener('click', () => { _previewMode = true; printMml11Statement(); });
+
+        const mml11Panel = document.getElementById('sub-mml-eleven-months-statement');
+        if (mml11Panel) {
+            const mml11Observer = new MutationObserver((mutations) => {
+                mutations.forEach(m => {
+                    if (m.attributeName === 'class' && mml11Panel.classList.contains('active') && !mml11Generated) {
+                        generateMml11Statement();
+                    }
+                });
+            });
+            mml11Observer.observe(mml11Panel, { attributes: true, attributeFilter: ['class'] });
         }
     }
 
@@ -11232,7 +11511,8 @@
         return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    initDailySale();
+    // NOTE: initDailySale() is called from switchSalesSub('add-daily-sale')
+    // when the user actually navigates to the sale page — not on startup.
 
     // ═══════════════════════════════════════════════════════
     //  BILLING — Legal page preview (12 bills/page)

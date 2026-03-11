@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <!-- Main background gradient: deep amber-dark -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1a1000"/>
+      <stop offset="100%" stop-color="#2d1a00"/>
+    </linearGradient>
+
+    <!-- Amber glow ring gradient -->
+    <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="60%"  stop-color="#d97706" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.35"/>
+    </radialGradient>
+
+    <!-- S letter gradient -->
+    <linearGradient id="sGrad" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%"   stop-color="#fde68a"/>
+      <stop offset="45%"  stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+
+    <!-- Drop gradient-->
+    <linearGradient id="dropGrad" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%"   stop-color="#fbbf24" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0.8"/>
+    </linearGradient>
+
+    <!-- Inner bevel on S -->
+    <linearGradient id="sBevel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <!-- Outer border gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#fbbf24"/>
+      <stop offset="50%"  stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+
+    <!-- Drop shadow filter -->
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="#d97706" flood-opacity="0.45"/>
+    </filter>
+
+    <!-- Glow filter for S -->
+    <filter id="sGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Clip to rounded square -->
+    <clipPath id="roundClip">
+      <rect x="0" y="0" width="512" height="512" rx="110" ry="110"/>
+    </clipPath>
+  </defs>
+
+  <!-- 1. Background rounded square -->
+  <rect x="0" y="0" width="512" height="512" rx="110" ry="110" fill="url(#bgGrad)"/>
+
+  <!-- 2. Subtle noise texture via fine grid -->
+  <rect x="0" y="0" width="512" height="512" rx="110" ry="110"
+        fill="url(#ringGlow)" opacity="0.6"/>
+
+  <!-- 3. Inner lighter panel -->
+  <rect x="24" y="24" width="464" height="464" rx="88" ry="88"
+        fill="none" stroke="url(#borderGrad)" stroke-width="3" opacity="0.7"/>
+
+  <!-- 4. Thin inner ring highlight -->
+  <rect x="14" y="14" width="484" height="484" rx="98" ry="98"
+        fill="none" stroke="#fbbf24" stroke-width="1" opacity="0.12"/>
+
+  <!-- 5. Ambient top shine -->
+  <ellipse cx="256" cy="80" rx="160" ry="40"
+           fill="#fbbf24" opacity="0.06"/>
+
+  <!-- 6. The "S" letterform — bold, modern -->
+  <!-- Using a path that traces a clean geometric S -->
+  <g filter="url(#dropShadow)">
+    <text
+      x="256" y="340"
+      font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+      font-size="310"
+      font-weight="900"
+      text-anchor="middle"
+      fill="url(#sGrad)"
+      letter-spacing="-8"
+    >S</text>
+  </g>
+
+  <!-- 7. Bevel overlay on S -->
+  <text
+    x="256" y="340"
+    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-size="310"
+    font-weight="900"
+    text-anchor="middle"
+    fill="url(#sBevel)"
+    letter-spacing="-8"
+    opacity="0.5"
+  >S</text>
+
+  <!-- 8. Liquor drop accent — top right of S -->
+  <g transform="translate(355, 108)" filter="url(#dropShadow)">
+    <!-- Teardrop shape: circle + triangle -->
+    <path d="M22 0 C22 0 44 30 44 44 A22 22 0 0 1 0 44 C0 30 22 0 22 0Z"
+          fill="url(#dropGrad)" opacity="0.92"/>
+    <!-- Shine on drop -->
+    <ellipse cx="15" cy="32" rx="5" ry="7" fill="white" opacity="0.35" transform="rotate(-20, 15, 32)"/>
+  </g>
+
+  <!-- 9. Small sparkle dots (3 of them) -->
+  <circle cx="148" cy="140" r="5" fill="#fbbf24" opacity="0.55"/>
+  <circle cx="138" cy="158" r="3" fill="#fbbf24" opacity="0.35"/>
+  <circle cx="160" cy="152" r="2.5" fill="#fde68a" opacity="0.4"/>
+
+  <!-- 10. Bottom label bar -->
+  <rect x="60" y="400" width="392" height="52" rx="10" fill="#d97706" opacity="0.13"/>
+  <text
+    x="256" y="436"
+    font-family="'Arial', 'Helvetica Neue', sans-serif"
+    font-size="30"
+    font-weight="700"
+    text-anchor="middle"
+    fill="#fde68a"
+    letter-spacing="6"
+    opacity="0.88"
+  >PLIQOUR PRO</text>
+
+  <!-- 11. Outer border glow (drawn last so it's on top) -->
+  <rect x="2" y="2" width="508" height="508" rx="111" ry="111"
+        fill="none" stroke="url(#borderGrad)" stroke-width="4" opacity="0.5"/>
+</svg>
