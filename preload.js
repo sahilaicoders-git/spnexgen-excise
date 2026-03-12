@@ -28,6 +28,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getProducts: (params) => ipcRenderer.invoke('get-products', params),
     saveProduct: (params) => ipcRenderer.invoke('save-product', params),
     deleteProduct: (params) => ipcRenderer.invoke('delete-product', params),
+    getDefaultProducts: () => ipcRenderer.invoke('get-default-products'),
+    saveProductsBulk: (params) => ipcRenderer.invoke('save-products-bulk', params),
+    getDefaultCustomers: () => ipcRenderer.invoke('get-default-customers'),
+    saveCustomersBulk: (params) => ipcRenderer.invoke('save-customers-bulk', params),
     downloadProductTemplate: () => ipcRenderer.invoke('download-product-template'),
     importProductsExcel: (params) => ipcRenderer.invoke('import-products-excel', params),
     // Transport Permits

@@ -904,6 +904,53 @@ ipcMain.handle('get-products', async (event, { barName, financialYear }) => {
   }
 });
 
+ipcMain.handle('get-default-products', async () => {
+  try {
+    const filePath = path.join(__dirname, 'default_products.json');
+    if (!fs.existsSync(filePath)) return { success: false, error: 'No default catalog found' };
+    // Strip UTF-8 BOM (\uFEFF) if present so JSON.parse doesn't choke
+    const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+    return { success: true, products: raw ? JSON.parse(raw) : [] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-default-customers', async () => {
+  try {
+    const filePath = path.join(__dirname, 'default_customers.json');
+    if (!fs.existsSync(filePath)) return { success: false, error: 'No default customer list found' };
+    const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+    return { success: true, customers: raw ? JSON.parse(raw) : [] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('save-customers-bulk', async (event, { barName, financialYear, customers }) => {
+  try {
+    const dir = getBarDir(barName, financialYear);
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, 'customers.json');
+    fs.writeFileSync(filePath, JSON.stringify(customers, null, 2));
+    return { success: true, count: customers.length };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('save-products-bulk', async (event, { barName, financialYear, products }) => {
+  try {
+    const dir = getBarDir(barName, financialYear);
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, 'products.json');
+    fs.writeFileSync(filePath, JSON.stringify(products, null, 2));
+    return { success: true, count: products.length };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('save-product', async (event, { barName, financialYear, product }) => {
   try {
     const dir = getBarDir(barName, financialYear);

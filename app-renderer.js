@@ -8917,15 +8917,16 @@
 
     const prodListBody    = document.getElementById('prodListBody');
     const prodEmptyState  = document.getElementById('prodEmptyState');
-    const prodCountEl     = document.getElementById('prodCount');
-    const prodSearchEl    = document.getElementById('prodSearch');
-    const prodFormPanel   = document.getElementById('prodFormPanel');
-    const prodFormEl      = document.getElementById('prodForm');
-    const prodPlaceholder = document.getElementById('prodPlaceholder');
-    const prodNewBtn      = document.getElementById('prodNewBtn');
-    const prodSaveBtn     = document.getElementById('prodSaveBtn');
-    const prodCancelBtn   = document.getElementById('prodCancelBtn');
-    const prodDeleteBtn   = document.getElementById('prodDeleteBtn');
+    const prodCountEl       = document.getElementById('prodCount');
+    const prodSearchEl      = document.getElementById('prodSearch');
+    const prodFormPanel     = document.getElementById('prodFormPanel');
+    const prodFormEl        = document.getElementById('prodForm');
+    const prodPlaceholder   = document.getElementById('prodPlaceholder');
+    const prodNewBtn        = document.getElementById('prodNewBtn');
+    const prodSaveBtn       = document.getElementById('prodSaveBtn');
+    const prodCancelBtn     = document.getElementById('prodCancelBtn');
+    const prodDeleteBtn     = document.getElementById('prodDeleteBtn');
+    const prodLoadDefaultsBtn = document.getElementById('prodLoadDefaultsBtn');
     const prodFlowFields  = Array.from(document.querySelectorAll('.prod-flow'));
     const prodSizeSelect  = document.getElementById('prodSize');
     const prodBpcInput    = document.getElementById('prodBpc');
@@ -9401,6 +9402,62 @@
             } finally {
                 prodImportBtn.disabled = false;
                 prodImportBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import Excel`;
+            }
+        });
+    }
+
+    /* ── Load Default Catalog ── */
+    if (prodLoadDefaultsBtn) {
+        prodLoadDefaultsBtn.addEventListener('click', async () => {
+            if (!activeBar.barName) { showTpToast('Open a bar first', true); return; }
+            const existingCount = allProducts.length;
+            const confirmMsg = existingCount > 0
+                ? `This bar already has ${existingCount} product(s). Loading defaults will ADD the built-in catalog entries (duplicates kept). Continue?`
+                : `Load the built-in catalog of standard products into this bar's Product Master?`;
+            if (!confirm(confirmMsg)) return;
+
+            prodLoadDefaultsBtn.disabled = true;
+            prodLoadDefaultsBtn.textContent = 'Loading…';
+            try {
+                const defResult = await window.electronAPI.getDefaultProducts();
+                if (!defResult.success) {
+                    showTpToast('Could not load default catalog: ' + defResult.error, true);
+                    return;
+                }
+                const now = new Date().toISOString();
+                const defaults = defResult.products.map((p, i) => ({
+                    id: `PROD_DEF_${Date.now()}_${i}`,
+                    brandName:   p.brandName   || '',
+                    code:        p.code        || '',
+                    category:    p.category    || '',
+                    subCategory: p.subCategory || '',
+                    size:        p.size        || '',
+                    bpc:         p.bpc         || 0,
+                    mrp:         p.mrp         || 0,
+                    costPrice:   p.costPrice   || 0,
+                    hsn:         p.hsn         || '',
+                    supplier:    '',
+                    barcode:     '',
+                    remarks:     '',
+                    createdAt:   now,
+                }));
+                const merged = [...allProducts, ...defaults];
+                const bulkResult = await window.electronAPI.saveProductsBulk({
+                    barName: activeBar.barName,
+                    financialYear: activeBar.financialYear || '',
+                    products: merged,
+                });
+                if (bulkResult.success) {
+                    showTpToast(`Default catalog loaded — ${defaults.length} products added`);
+                    await loadProducts();
+                } else {
+                    showTpToast('Save failed: ' + bulkResult.error, true);
+                }
+            } catch (err) {
+                showTpToast('Error: ' + err.message, true);
+            } finally {
+                prodLoadDefaultsBtn.disabled = false;
+                prodLoadDefaultsBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><polyline points="12 8 12 12 14 14"/></svg> Load Defaults`;
             }
         });
     }
@@ -12537,10 +12594,11 @@
     const custCountEl    = document.getElementById('custCount');
     const custNameEl     = document.getElementById('custName');
     const custLicNoEl    = document.getElementById('custLicNo');
-    const custSaveBtn    = document.getElementById('custSaveBtn');
-    const custCancelBtn  = document.getElementById('custCancelBtn');
-    const custDeleteBtn  = document.getElementById('custDeleteBtn');
-    const custNewBtn     = document.getElementById('custNewBtn');
+    const custSaveBtn         = document.getElementById('custSaveBtn');
+    const custCancelBtn        = document.getElementById('custCancelBtn');
+    const custDeleteBtn        = document.getElementById('custDeleteBtn');
+    const custNewBtn           = document.getElementById('custNewBtn');
+    const custLoadDefaultsBtn  = document.getElementById('custLoadDefaultsBtn');
 
     async function loadCustomers() {
         try {
@@ -12728,6 +12786,52 @@
     /* ── Wire buttons ── */
     if (custNewBtn) custNewBtn.addEventListener('click', openNewCustomer);
     if (custSaveBtn) custSaveBtn.addEventListener('click', saveCustomer);
+
+    /* ── Load Default Customers ── */
+    if (custLoadDefaultsBtn) {
+        custLoadDefaultsBtn.addEventListener('click', async () => {
+            if (!activeBar.barName) { showTpToast('Open a bar first', true); return; }
+            const existingCount = allCustomers.length;
+            const confirmMsg = existingCount > 0
+                ? `This bar already has ${existingCount} customer(s). Loading defaults will ADD the built-in list entries (duplicates kept). Continue?`
+                : `Load the built-in list of default customers into this bar's Customer Manager?`;
+            if (!confirm(confirmMsg)) return;
+
+            custLoadDefaultsBtn.disabled = true;
+            custLoadDefaultsBtn.textContent = 'Loading…';
+            try {
+                const defResult = await window.electronAPI.getDefaultCustomers();
+                if (!defResult.success) {
+                    showTpToast('Could not load default list: ' + defResult.error, true);
+                    return;
+                }
+                const now = new Date().toISOString();
+                const defaults = defResult.customers.map((c, i) => ({
+                    id: `CUST_DEF_${Date.now()}_${i}`,
+                    name:      c.name   || '',
+                    licNo:     c.licNo  || '',
+                    createdAt: now,
+                }));
+                const merged = [...allCustomers, ...defaults];
+                const bulkResult = await window.electronAPI.saveCustomersBulk({
+                    barName: activeBar.barName,
+                    financialYear: activeBar.financialYear || '',
+                    customers: merged,
+                });
+                if (bulkResult.success) {
+                    showTpToast(`Default customers loaded — ${defaults.length} customers added`);
+                    await loadCustomers();
+                } else {
+                    showTpToast('Save failed: ' + bulkResult.error, true);
+                }
+            } catch (err) {
+                showTpToast('Error: ' + err.message, true);
+            } finally {
+                custLoadDefaultsBtn.disabled = false;
+                custLoadDefaultsBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Load Defaults`;
+            }
+        });
+    }
     if (custCancelBtn) custCancelBtn.addEventListener('click', cancelCustForm);
     if (custDeleteBtn) custDeleteBtn.addEventListener('click', () => deleteCustomerConfirm());
 
