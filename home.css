@@ -330,6 +330,46 @@
     opacity: 1;
 }
 
+.bar-card.selected {
+    border-color: var(--primary);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 10%, var(--panel-bg)) 0%, var(--panel-bg) 100%);
+    box-shadow: 0 0 0 2px var(--primary-glow), 0 14px 30px rgba(0, 0, 0, 0.14);
+}
+
+.bar-card.selected::before {
+    opacity: 1;
+    height: 4px;
+    pointer-events: none;
+}
+
+.bar-card.selected::after {
+    content: 'Selected';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: #fff;
+    background: var(--primary);
+    box-shadow: 0 4px 14px var(--primary-glow);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.bar-card.selected .bar-card-badge {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--primary-light);
+}
+
+.bar-card.selected .bar-card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--primary);
+}
+
 .bar-card-header {
     display: flex;
     align-items: flex-start;

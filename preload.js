@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getMrpMaster: (params) => ipcRenderer.invoke('get-mrp-master', params),
     saveMrpEntry: (params) => ipcRenderer.invoke('save-mrp-entry', params),
     deleteMrpEntry: (params) => ipcRenderer.invoke('delete-mrp-entry', params),
+    getDefaultMrpMaster: () => ipcRenderer.invoke('get-default-mrp-master'),
+    saveMrpBulk: (params) => ipcRenderer.invoke('save-mrp-bulk', params),
     // Shortcut Master
     getShortcuts: (params) => ipcRenderer.invoke('get-shortcuts', params),
     saveShortcut: (params) => ipcRenderer.invoke('save-shortcut', params),

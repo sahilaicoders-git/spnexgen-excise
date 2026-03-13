@@ -927,6 +927,17 @@ ipcMain.handle('get-default-customers', async () => {
   }
 });
 
+ipcMain.handle('get-default-mrp-master', async () => {
+  try {
+    const filePath = path.join(__dirname, 'default_mrp_master.json');
+    if (!fs.existsSync(filePath)) return { success: false, error: 'No default MRP list found' };
+    const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+    return { success: true, entries: raw ? JSON.parse(raw) : [] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('save-customers-bulk', async (event, { barName, financialYear, customers }) => {
   try {
     const dir = getBarDir(barName, financialYear);
@@ -1862,6 +1873,18 @@ ipcMain.handle('delete-mrp-entry', async (event, { barName, financialYear, mrpEn
     entries = entries.filter(e => e.id !== mrpEntryId);
     fs.writeFileSync(filePath, JSON.stringify(entries, null, 2));
     return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('save-mrp-bulk', async (event, { barName, financialYear, entries }) => {
+  try {
+    const dir = getBarDir(barName, financialYear);
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, 'mrp_master.json');
+    fs.writeFileSync(filePath, JSON.stringify(entries || [], null, 2));
+    return { success: true, count: (entries || []).length };
   } catch (err) {
     return { success: false, error: err.message };
   }

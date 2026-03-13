@@ -1238,6 +1238,20 @@
 
     // ── Global Keyboard Shortcuts ──────────────────────────
     document.addEventListener('keydown', (e) => {
+        // Alt+F2 -> Sales > Add Daily Sale
+        if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'F2') {
+            e.preventDefault();
+            document.querySelector('#salesMenu .dd-item[data-sub="add-daily-sale"]')?.click();
+            return;
+        }
+
+        // Alt+F3 -> Purchase > Add TP
+        if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'F3') {
+            e.preventDefault();
+            document.querySelector('#purchaseMenu .dd-item[data-sub="add-tp"]')?.click();
+            return;
+        }
+
         // Theme
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't') {
             e.preventDefault();
@@ -9478,6 +9492,7 @@
     const mrpFilterSizeEl = document.getElementById('mrpFilterSize');
     const mrpDetailEl     = document.getElementById('mrpDetail');
     const mrpPlaceholder  = document.getElementById('mrpPlaceholder');
+    const mrpLoadDefaultsBtn = document.getElementById('mrpLoadDefaultsBtn');
     const mrpSyncBtn      = document.getElementById('mrpSyncBtn');
     const mrpUpdateBtn    = document.getElementById('mrpUpdateBtn');
     const mrpCancelBtn    = document.getElementById('mrpCancelBtn');
@@ -9577,6 +9592,126 @@
 
         applyMrpFilters();
         showTpToast(`MRP Master synced — ${added} new product${added !== 1 ? 's' : ''} added, ${allMrpEntries.length} total`);
+    }
+
+    async function loadMrpDefaults() {
+        if (!activeBar.barName) return;
+        try {
+            const defRes = await window.electronAPI.getDefaultMrpMaster();
+            if (!defRes?.success) {
+                showTpToast(defRes?.error || 'Could not load default MRP list', true);
+                return;
+            }
+
+            const defaults = Array.isArray(defRes.entries) ? defRes.entries : [];
+            if (!defaults.length) {
+                showTpToast('Default MRP list is empty', true);
+                return;
+            }
+
+            const keyOf = (r) => `${(r.code || '').trim().toUpperCase()}|${(r.size || '').trim().toUpperCase()}`;
+            const existingMap = new Map();
+            allMrpEntries.forEach((e) => existingMap.set(keyOf(e), e));
+
+            const today = new Date().toISOString().slice(0, 10);
+            let added = 0;
+            let updated = 0;
+
+            for (const d of defaults) {
+                const key = keyOf(d);
+                if (!key || key === '|') continue;
+
+                const defaultMrp = Number(d.currentMrp) || 0;
+                const defaultCost = Number(d.currentCost) || 0;
+                const found = existingMap.get(key);
+
+                if (found) {
+                    let changed = false;
+                    if ((found.brandName || '') !== (d.brandName || '')) { found.brandName = d.brandName || ''; changed = true; }
+                    if ((found.category || '') !== (d.category || '')) { found.category = d.category || ''; changed = true; }
+                    if ((found.code || '') !== (d.code || '')) { found.code = d.code || ''; changed = true; }
+                    if ((found.size || '') !== (d.size || '')) { found.size = d.size || ''; changed = true; }
+
+                    const existingMrp = Number(found.currentMrp) || 0;
+                    const existingCost = Number(found.currentCost) || 0;
+
+                    if (existingMrp <= 0 && defaultMrp > 0) {
+                        if (!Array.isArray(found.mrpHistory)) found.mrpHistory = [];
+                        if (found.mrpHistory.length === 0) {
+                            found.mrpHistory.push({
+                                mrp: defaultMrp,
+                                oldMrp: 0,
+                                costPrice: defaultCost,
+                                oldCost: 0,
+                                effectiveFrom: today,
+                                effectiveTo: null,
+                                changedAt: new Date().toISOString(),
+                                notes: 'Initial MRP from Default MRP Master',
+                                type: 'initial',
+                            });
+                        }
+                        found.currentMrp = defaultMrp;
+                        changed = true;
+                    }
+
+                    if (existingCost <= 0 && defaultCost > 0) {
+                        found.currentCost = defaultCost;
+                        changed = true;
+                    }
+
+                    if (changed) updated++;
+                    continue;
+                }
+
+                const entry = {
+                    id: 'MRP_DEF_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + added,
+                    productId: '',
+                    brandName: d.brandName || '',
+                    code: d.code || '',
+                    category: d.category || '',
+                    size: d.size || '',
+                    currentMrp: defaultMrp,
+                    currentCost: defaultCost,
+                    mrpHistory: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                };
+
+                if (defaultMrp > 0 || defaultCost > 0) {
+                    entry.mrpHistory.push({
+                        mrp: defaultMrp,
+                        oldMrp: 0,
+                        costPrice: defaultCost,
+                        oldCost: 0,
+                        effectiveFrom: today,
+                        effectiveTo: null,
+                        changedAt: new Date().toISOString(),
+                        notes: 'Initial MRP from Default MRP Master',
+                        type: 'initial',
+                    });
+                }
+
+                allMrpEntries.push(entry);
+                existingMap.set(key, entry);
+                added++;
+            }
+
+            const saveRes = await window.electronAPI.saveMrpBulk({
+                barName: activeBar.barName,
+                financialYear: activeBar.financialYear || '',
+                entries: allMrpEntries,
+            });
+
+            if (!saveRes?.success) {
+                showTpToast(saveRes?.error || 'Could not save MRP defaults', true);
+                return;
+            }
+
+            applyMrpFilters();
+            showTpToast(`MRP defaults loaded — ${added} added, ${updated} updated`);
+        } catch (err) {
+            showTpToast('Load defaults failed: ' + err.message, true);
+        }
     }
 
     /* ── Apply filters and render ── */
@@ -9910,6 +10045,7 @@
     }
 
     /* ── Wire buttons ── */
+    if (mrpLoadDefaultsBtn) mrpLoadDefaultsBtn.addEventListener('click', loadMrpDefaults);
     if (mrpSyncBtn)   mrpSyncBtn.addEventListener('click', syncProductsToMrp);
     if (mrpUpdateBtn) mrpUpdateBtn.addEventListener('click', updateMrp);
     if (mrpCancelBtn) mrpCancelBtn.addEventListener('click', cancelMrpSelection);
@@ -11158,6 +11294,20 @@
 
     /* ══════ AUTOCOMPLETE ══════ */
     function dsSearchItems(query) {
+        const sizeToMl = (sizeText) => {
+            const s = (sizeText || '').toString().trim().toUpperCase();
+            if (!s) return Number.POSITIVE_INFINITY;
+
+            const ltrMatch = s.match(/(\d+(?:\.\d+)?)\s*(LTR|L)\b/);
+            if (ltrMatch) return Math.round(parseFloat(ltrMatch[1]) * 1000);
+
+            const mlMatch = s.match(/(\d+(?:\.\d+)?)\s*ML\b/);
+            if (mlMatch) return Math.round(parseFloat(mlMatch[1]));
+
+            const numMatch = s.match(/(\d+(?:\.\d+)?)/);
+            return numMatch ? Math.round(parseFloat(numMatch[1])) : Number.POSITIVE_INFINITY;
+        };
+
         const q = query.toLowerCase().trim();
         if (!q) return [];
         const results = [];
@@ -11191,6 +11341,17 @@
                 if (results.length >= 15) break;
             }
         }
+
+        results.sort((a, b) => {
+            const brandCmp = (a.brandName || '').localeCompare((b.brandName || ''), 'en', { sensitivity: 'base' });
+            if (brandCmp !== 0) return brandCmp;
+
+            const sizeCmp = sizeToMl(a.size) - sizeToMl(b.size);
+            if (sizeCmp !== 0) return sizeCmp;
+
+            return (a.code || '').localeCompare((b.code || ''), 'en', { sensitivity: 'base' });
+        });
+
         return results;
     }
 
@@ -11199,7 +11360,7 @@
         if (results.length === 0) { dsAcDropdown.classList.add('hidden'); dsAcFocusIdx = -1; return; }
         dsAcDropdown.innerHTML = results.map((r, i) => {
             const stockClass = r.stock <= 0 ? 'out-of-stock' : '';
-            const stockText = r.stock > 0 ? `${r.stock} btl` : 'Out of stock';
+            const stockText = r.stock > 0 ? `Available: ${r.stock} btl` : 'Out of stock';
             return `<div class="ds-ac-item${i === dsAcFocusIdx ? ' focused' : ''}" data-idx="${i}">
                 <span class="ds-ac-item-code">${escDS(r.shortcode)}</span>
                 <span class="ds-ac-item-brand">${escDS(r.brandName)}</span>

@@ -77,6 +77,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     let allBars = [];
     let filtered = [];
     let focusedIdx = 0;
+    let selectedIdx = -1;
+    let selectedBarKey = '';
+    let openingBar = false;
+
+    try {
+        const activeRaw = sessionStorage.getItem('active-bar');
+        if (activeRaw) {
+            const active = JSON.parse(activeRaw);
+            selectedBarKey = `${(active.barName || '').toLowerCase()}|${active.financialYear || ''}`;
+        }
+    } catch (_) { /* ignore parse errors */ }
 
     async function loadBars() {
         try {
@@ -121,6 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function render(bars) {
         barList.innerHTML = '';
         filtered = bars;
+        selectedIdx = -1;
 
         if (bars.length === 0) {
             emptyState.classList.remove('hidden');
@@ -136,6 +148,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             card.tabIndex = 0;
             card.dataset.idx = idx;
             card.style.animationDelay = `${idx * 0.04}s`;
+
+            const cardKey = `${(bar.barName || '').toLowerCase()}|${bar.financialYear || ''}`;
+            if (selectedBarKey && cardKey === selectedBarKey) {
+                card.classList.add('selected');
+                selectedIdx = idx;
+            }
 
             const fyShort = fyShortLabel(bar.financialYear);
             const initial = (bar.barName || 'B').charAt(0).toUpperCase();
@@ -161,16 +179,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
 
-            card.addEventListener('click', () => openBar(bar));
+            card.addEventListener('click', () => openBarByIndex(idx));
             card.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); openBar(bar); }
+                if (e.key === 'Enter') { e.preventDefault(); openBarByIndex(idx); }
             });
             card.addEventListener('focus', () => setFocus(idx));
 
             barList.appendChild(card);
         });
 
-        setFocus(0);
+        setFocus(selectedIdx >= 0 ? selectedIdx : 0);
     }
 
     // ── Focus management ───────────────────────────────────
@@ -184,15 +202,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function setSelected(idx) {
+        const cards = barList.querySelectorAll('.bar-card');
+        cards.forEach(c => c.classList.remove('selected'));
+        if (cards[idx]) {
+            cards[idx].classList.add('selected');
+            selectedIdx = idx;
+            const bar = filtered[idx];
+            if (bar) selectedBarKey = `${(bar.barName || '').toLowerCase()}|${bar.financialYear || ''}`;
+        }
+    }
+
     // ── Open bar ───────────────────────────────────────────
     async function openBar(barEntry) {
-        const result = await window.electronAPI.openBar(barEntry);
-        if (result.success) {
-            sessionStorage.setItem('active-bar', JSON.stringify(result.data));
-            window.electronAPI.navigateToApp();
-        } else {
-            alert('Failed to open bar: ' + result.error);
+        if (!barEntry || openingBar) return;
+        openingBar = true;
+        const idx = filtered.findIndex(b => b === barEntry);
+        if (idx >= 0) setSelected(idx);
+        try {
+            const result = await window.electronAPI.openBar(barEntry);
+            if (result.success) {
+                sessionStorage.setItem('active-bar', JSON.stringify(result.data));
+                window.electronAPI.navigateToApp();
+            } else {
+                alert('Failed to open bar: ' + result.error);
+            }
+        } finally {
+            openingBar = false;
         }
+    }
+
+    async function openBarByIndex(idx) {
+        if (idx < 0 || idx >= filtered.length) return;
+        await openBar(filtered[idx]);
     }
 
     // ── Search ─────────────────────────────────────────────
@@ -231,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (e.key === 'Enter') {
             if (document.activeElement === searchInput && cards.length > 0) {
                 e.preventDefault();
-                openBar(filtered[focusedIdx]);
+                openBarByIndex(focusedIdx);
             }
         }
     });
